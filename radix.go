@@ -370,8 +370,8 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 		} else {
 
 			// Traverse the param node until all the segments are exhausted.
-			params.set(n.param.prefix[1:], path[:idx])
 			if child, params := n.param._search(path[idx:], params, paramInjector); child != nil && child.handler != nil {
+				params.set(n.param.prefix[1:], path[:idx])
 				return child, params
 			}
 		}
