@@ -45,7 +45,7 @@ func TestStatic(t *testing.T) {
 		"/graph",
 	}
 
-	tree := newTree()
+	tree := newRootNode()
 
 	paramsCount := 0
 	for _, path := range paths {
@@ -249,6 +249,7 @@ func TestWildcard(t *testing.T) {
 		"/users/posts/*command",
 		"/images/*filepath",
 		"/hero-*dir",
+		"/netflix*abc",
 	}
 
 	tree := &node{}
@@ -282,6 +283,9 @@ func TestWildcard(t *testing.T) {
 		{path: "/hero-marvel/loki.json", valid: true, pathTemplate: "/hero-*dir"},
 		{path: "/hero-", valid: true, pathTemplate: "/hero-*dir"},
 		{path: "/hero", valid: false, pathTemplate: ""},
+		{path: "/netflix", valid: true, pathTemplate: "/netflix*abc"},
+		{path: "/netflix++", valid: true, pathTemplate: "/netflix*abc"},
+		{path: "/netflix/drama/better-call-saul", valid: true, pathTemplate: "/netflix*abc"},
 	}
 
 	testSearch(t, tree, params, tt)
@@ -310,9 +314,9 @@ func TestWildcardParams(t *testing.T) {
 	params := newParams(paramsCount)
 
 	tt := testTable2{
+		{path: "/messages/", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": ""}}, // todo: fix this issue
 		{path: "/messages/publish", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": "publish"}},
 		{path: "/messages/publish/OrderPlaced", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": "publish/OrderPlaced"}},
-		{path: "/messages/", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": ""}},
 		{path: "/messages", valid: false, pathTemplate: "", params: nil},
 		{path: "/users/posts/", valid: true, pathTemplate: "/users/posts/*command", params: map[string]string{"command": ""}},
 		{path: "/users/posts", valid: false, pathTemplate: "", params: nil},
@@ -384,7 +388,9 @@ func BenchmarkSimple(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, params)
+			tree.search(s, func() *Params {
+				return params
+			})
 			params.reset()
 		}
 	}
@@ -461,7 +467,9 @@ func BenchmarkSimple2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, params)
+			tree.search(s, func() *Params {
+				return params
+			})
 			params.reset()
 		}
 	}
@@ -469,7 +477,9 @@ func BenchmarkSimple2(b *testing.B) {
 
 func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 	for _, tx := range table {
-		nd := tree.search(tx.path, params)
+		nd, ps := tree.search(tx.path, func() *Params {
+			return params
+		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
 			t.Errorf("expected: valid handler, got: no handler: %s", tx.path)
 		}
@@ -477,14 +487,19 @@ func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 			t.Errorf("expected: no handler, got: valid handler")
 		}
 		if tx.pathTemplate != "" && tx.pathTemplate != nd.template {
-			t.Errorf("expected: %s, got: %s", tx.pathTemplate, nd.template)
+			t.Errorf("%s expected: %s, got: %s", tx.path, tx.pathTemplate, nd.template)
+		}
+		if ps != nil {
+			ps.reset()
 		}
 	}
 }
 
 func testSearchWithParams(t *testing.T, tree *node, params *Params, table testTable2) {
 	for _, tx := range table {
-		nd := tree.search(tx.path, params)
+		nd, ps := tree.search(tx.path, func() *Params {
+			return newParams(5)
+		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
 			t.Errorf("expected: valid handler, got: no handler: %s", tx.path)
 		}
@@ -496,13 +511,14 @@ func testSearchWithParams(t *testing.T, tree *node, params *Params, table testTa
 		}
 		if tx.params != nil {
 			for k, v := range tx.params {
-				pv := params.Get(k)
+				pv := ps.Get(k)
 				if v != pv {
 					t.Errorf("params assertion failed. expected: %s, got: %s", v, pv)
 				}
 			}
 		}
-
-		params.reset()
+		if ps != nil {
+			ps.reset()
+		}
 	}
 }
