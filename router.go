@@ -31,6 +31,8 @@ const (
 	MethodTrace   = http.MethodTrace
 )
 
+var methodAll = Methods{MethodGet, MethodPost, MethodPut, MethodPatch, MethodDelete, MethodOptions, MethodHead, MethodConnect, MethodTrace}
+
 type log struct {
 	method  string
 	path    string
@@ -173,8 +175,7 @@ func (r *Router) Trace(path string, handler Handler) {
 }
 
 func (r *Router) Any(path string, handler Handler) {
-	//TODO implement me
-	panic("implement me")
+	r.Map(methodAll, path, handler)
 }
 
 func (r *Router) chain(handler Handler) Handler {
@@ -187,7 +188,7 @@ func (r *Router) chain(handler Handler) Handler {
 func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	tr, ok := r.trees[request.Method]
 	if !ok {
-		panic("implement method not allowed")
+		http.NotFound(writer, request)
 	}
 
 	n, ps := tr.search(request.URL.Path, func() *Params {
@@ -209,5 +210,5 @@ func (r *Router) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		r.paramsPool.Put(ps)
 	}
 
-	panic("implement method not allowed")
+	http.NotFound(writer, request)
 }
