@@ -43,7 +43,7 @@ func (p *Params) Get(k string) string {
 }
 
 func (p *Params) ForEach(f func(k, v string) bool) {
-	for _, kv := range p.params {
-		f(kv.key, kv.value)
+	for i := len(p.params) - 1; i >= 0; i-- {
+		f(p.params[i].key, p.params[i].value)
 	}
 }
