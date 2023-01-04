@@ -194,17 +194,15 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 
 	tree := &node{}
 
-	paramsCount := 0
+	maxParams := 0
 	for _, path := range paths {
 		tree.insert(path, HandlerFunc(fakeHandler1))
 
 		pc := findParamsCount(path)
-		if pc > paramsCount {
-			paramsCount = pc
+		if pc > maxParams {
+			maxParams = pc
 		}
 	}
-
-	params := newParams(paramsCount)
 
 	tt := testTable2{
 		{path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
@@ -240,7 +238,7 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 		{path: "/hero-", valid: false, pathTemplate: "", params: nil},
 	}
 
-	testSearchWithParams(t, tree, params, tt)
+	testSearchWithParams(t, tree, maxParams, tt)
 }
 
 func TestWildcard(t *testing.T) {
@@ -301,17 +299,15 @@ func TestWildcardParams(t *testing.T) {
 
 	tree := &node{}
 
-	paramsCount := 0
+	maxParams := 0
 	for _, path := range paths {
 		tree.insert(path, HandlerFunc(fakeHandler1))
 
 		pc := findParamsCount(path)
-		if pc > paramsCount {
-			paramsCount = pc
+		if pc > maxParams {
+			maxParams = pc
 		}
 	}
-
-	params := newParams(paramsCount)
 
 	tt := testTable2{
 		{path: "/messages/", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": ""}}, // todo: fix this issue
@@ -333,7 +329,112 @@ func TestWildcardParams(t *testing.T) {
 		{path: "/hero", valid: false, pathTemplate: "", params: nil},
 	}
 
-	testSearchWithParams(t, tree, params, tt)
+	testSearchWithParams(t, tree, maxParams, tt)
+}
+
+func TestNode_Search_TraversalPathChange(t *testing.T) {
+	t.Run("1", func(t *testing.T) {
+		paths := [...]string{
+			"/search",
+			"/search/:q/stop",
+			"/search/*action",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/search/cherry/", valid: true, pathTemplate: "/search/*action", params: map[string]string{"action": "cherry/"}},
+			{path: "/search/cherry/berry", valid: true, pathTemplate: "/search/*action", params: map[string]string{"action": "cherry/berry"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		paths := [...]string{
+			"/apple/banana/:f1/:f2/:f3/mango",
+			"/apple/banana/*wc",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/apple/banana/pineapple/guava/cherry/mandarin", valid: true, pathTemplate: "/apple/banana/*wc", params: map[string]string{"wc": "pineapple/guava/cherry/mandarin"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("3", func(t *testing.T) {
+		paths := [...]string{
+			"/apple/:f1/mango",
+			"/*wc",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/apple/banana", valid: true, pathTemplate: "/*wc", params: map[string]string{"wc": "apple/banana"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("4", func(t *testing.T) {
+		paths := [...]string{
+			"/cherry/berry/:f2/:f3",
+			"/cherry/:f4/:f5/:f6/:f7",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/cherry/berry/apple/banana/mango", valid: true, pathTemplate: "/cherry/:f4/:f5/:f6/:f7", params: map[string]string{"f4": "berry", "f5": "apple", "f6": "banana", "f7": "mango"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
 }
 
 func BenchmarkSimple(b *testing.B) {
@@ -495,10 +596,10 @@ func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 	}
 }
 
-func testSearchWithParams(t *testing.T, tree *node, params *Params, table testTable2) {
+func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTable2) {
 	for _, tx := range table {
 		nd, ps := tree.search(tx.path, func() *Params {
-			return newParams(5)
+			return newParams(maxParams)
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
 			t.Errorf("expected: valid handler, got: no handler: %s", tx.path)
