@@ -191,20 +191,20 @@ func (router *Router2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := mux.find(r.URL.Path)
+	handler, ps := mux.find(r.URL.Path)
 	if handler == nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	handler(w, r, nil)
+	handler(w, r, ps)
 }
 
 // Mux
 
 type muxInterface interface {
 	add(path string, handler Handler)
-	find(path string) Handler
+	find(path string) (Handler, *Params)
 }
 
 type wcMux struct {
@@ -226,7 +226,13 @@ func (mux *wcMux) add(path string, handler Handler) {
 		panic("handler cannot be nil")
 	}
 
-	pc := mux.tree.insert(path, handler)
+	pc := mux.tree.insert(path, func(w http.ResponseWriter, r *http.Request, p *Params) {
+		handler(w, r, p)
+
+		if p != nil {
+			mux.paramsPool.Put(p)
+		}
+	})
 	if mux.paramsPool.New == nil || pc > mux.maxParams {
 		mux.maxParams = pc
 		mux.paramsPool.New = func() any {
@@ -235,7 +241,7 @@ func (mux *wcMux) add(path string, handler Handler) {
 	}
 }
 
-func (mux *wcMux) find(path string) Handler {
+func (mux *wcMux) find(path string) (Handler, *Params) {
 	n, ps := mux.tree.search(path, func() *Params {
 		ps := mux.paramsPool.Get().(*Params)
 		ps.reset()
@@ -243,23 +249,13 @@ func (mux *wcMux) find(path string) Handler {
 	})
 
 	if n != nil && n.handler != nil {
-		if ps != nil {
-			mux.paramsPool.Put(ps)
-		}
-
-		return func(w http.ResponseWriter, r *http.Request, _ *Params) {
-			n.handler(w, r, ps)
-
-			if ps != nil {
-				mux.paramsPool.Put(ps)
-			}
-		}
+		return n.handler, ps
 	}
 
 	if ps != nil {
 		mux.paramsPool.Put(ps)
 	}
-	return nil
+	return nil, nil
 }
 
 type staticMux struct {
@@ -284,16 +280,16 @@ func (mux *staticMux) add(path string, handler Handler) {
 	mux.sizePlot[len(path)] = true
 }
 
-func (mux *staticMux) find(path string) Handler {
+func (mux *staticMux) find(path string) (Handler, *Params) {
 	if len(path) >= len(mux.sizePlot) {
-		return nil
+		return nil, nil
 	}
 
 	if !mux.sizePlot[len(path)] {
-		return nil
+		return nil, nil
 	}
 
-	return mux.routes[path]
+	return mux.routes[path], nil
 }
 
 type hybridMux struct {
