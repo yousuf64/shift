@@ -168,10 +168,14 @@ func Compile(d *Dune) *Router2 {
 		var mux muxInterface
 
 		total := len(inf.logs)
-		if total == inf.static {
+		staticPercentage := float64(inf.static) / float64(total) * 100
+
+		if staticPercentage == 100 {
 			mux = newStaticMux()
+		} else if staticPercentage >= 30 {
+			mux = newHybridMux()
 		} else {
-			mux = newWCMux()
+			mux = newRadixMux()
 		}
 
 		for _, lg := range inf.logs {
@@ -207,21 +211,21 @@ type muxInterface interface {
 	find(path string) (Handler, *Params)
 }
 
-type wcMux struct {
+type radixMux struct {
 	tree       *node
 	paramsPool sync.Pool
 	maxParams  int
 }
 
-func newWCMux() *wcMux {
-	return &wcMux{
+func newRadixMux() *radixMux {
+	return &radixMux{
 		tree:       newRootNode(),
 		paramsPool: sync.Pool{},
 		maxParams:  0,
 	}
 }
 
-func (mux *wcMux) add(path string, handler Handler) {
+func (mux *radixMux) add(path string, handler Handler) {
 	if handler == nil {
 		panic("handler cannot be nil")
 	}
@@ -241,7 +245,7 @@ func (mux *wcMux) add(path string, handler Handler) {
 	}
 }
 
-func (mux *wcMux) find(path string) (Handler, *Params) {
+func (mux *radixMux) find(path string) (Handler, *Params) {
 	n, ps := mux.tree.search(path, func() *Params {
 		ps := mux.paramsPool.Get().(*Params)
 		ps.reset()
@@ -293,4 +297,33 @@ func (mux *staticMux) find(path string) (Handler, *Params) {
 }
 
 type hybridMux struct {
+	static *staticMux
+	radix  *radixMux
+}
+
+func newHybridMux() *hybridMux {
+	return &hybridMux{newStaticMux(), newRadixMux()}
+}
+
+func (mux *hybridMux) add(path string, handler Handler) {
+	static := isStatic(path)
+	if static {
+		mux.static.add(path, handler)
+	} else {
+		mux.radix.add(path, handler)
+	}
+}
+
+func (mux *hybridMux) find(path string) (Handler, *Params) {
+	if handler, ps := mux.static.find(path); handler != nil {
+		return handler, ps
+	}
+
+	return mux.radix.find(path)
+}
+
+func isStatic(path string) bool {
+	return strings.IndexFunc(path, func(r rune) bool {
+		return r == ':' || r == '*'
+	}) == -1
 }
