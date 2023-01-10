@@ -9,6 +9,8 @@ import (
 
 type MiddlewareFunc func(next Handler) Handler
 
+type HTTPMiddlewareFunc func(next http.Handler) http.Handler
+
 type paramKey struct{}
 
 func HandlerFunc(handler http.HandlerFunc) Handler {
@@ -39,7 +41,7 @@ const (
 var methodAll = Methods{MethodGet, MethodPost, MethodPut, MethodPatch, MethodDelete, MethodOptions, MethodHead, MethodConnect, MethodTrace}
 
 type Option interface {
-	apply(router *Dune)
+	apply(d *Dune)
 }
 
 type optionFunc func(*Dune)
@@ -52,6 +54,31 @@ func Use(middlewares ...MiddlewareFunc) Option {
 	return optionFunc(func(d *Dune) {
 		d.mws = append(d.mws, middlewares...)
 	})
+}
+
+func UseHTTP(middlewares ...HTTPMiddlewareFunc) Option {
+	return optionFunc(func(d *Dune) {
+		for _, mw := range middlewares {
+			d.mws = append(d.mws, toDuneMW(mw))
+		}
+	})
+}
+
+func toDuneMW(mw HTTPMiddlewareFunc) MiddlewareFunc {
+	return func(next Handler) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			nextFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next(w, r, ps)
+			})
+
+			if ps != nil {
+				if v := r.Context().Value(paramKey{}); v == nil {
+					r = r.WithContext(context.WithValue(r.Context(), paramKey{}, ps))
+				}
+			}
+			mw(nextFn).ServeHTTP(w, r)
+		}
+	}
 }
 
 type log struct {
