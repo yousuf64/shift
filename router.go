@@ -11,9 +11,13 @@ type MiddlewareFunc func(next Handler) Handler
 
 type paramKey struct{}
 
-func HandlerFunc(handler http.Handler) Handler {
+func HandlerFunc(handler http.HandlerFunc) Handler {
 	return func(w http.ResponseWriter, r *http.Request, p *Params) {
-		r = r.WithContext(context.WithValue(r.Context(), paramKey{}, p))
+		if p != nil {
+			if v := r.Context().Value(paramKey{}); v == nil {
+				r = r.WithContext(context.WithValue(r.Context(), paramKey{}, p))
+			}
+		}
 		handler.ServeHTTP(w, r)
 	}
 }
