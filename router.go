@@ -6,6 +6,28 @@ import (
 	"sync"
 )
 
+type Action uint8
+
+const (
+	DoNone Action = iota
+	DoRedirect
+	DoExecute
+)
+
+type Config struct {
+	OnTrailingSlashMatch   Action
+	OnFixedPathMatch       Action
+	NotFoundHandler        Handler
+	HandleMethodNotAllowed bool
+}
+
+var defaultConfig = &Config{
+	HandleMethodNotAllowed: true,
+	OnTrailingSlashMatch:   DoRedirect,
+	OnFixedPathMatch:       DoRedirect,
+	NotFoundHandler:        defaultNotFoundHandler,
+}
+
 type MiddlewareFunc func(next Handler) Handler
 
 type HTTPMiddlewareFunc func(next http.Handler) http.Handler
@@ -56,12 +78,36 @@ func Use(middlewares ...MiddlewareFunc) Option {
 func UseHTTP(middlewares ...HTTPMiddlewareFunc) Option {
 	return optionFunc(func(d *Dune) {
 		for _, mw := range middlewares {
-			d.mws = append(d.mws, toDuneMW(mw))
+			d.mws = append(d.mws, wrapHttpMiddleware(mw))
 		}
 	})
 }
 
-func toDuneMW(mw HTTPMiddlewareFunc) MiddlewareFunc {
+func OnTrailingSlashMatch(action Action) Option {
+	return optionFunc(func(d *Dune) {
+		d.config.OnTrailingSlashMatch = action
+	})
+}
+
+func OnFixedPathMatch(action Action) Option {
+	return optionFunc(func(d *Dune) {
+		d.config.OnFixedPathMatch = action
+	})
+}
+
+func WithNotFoundHandler(handler Handler) Option {
+	return optionFunc(func(d *Dune) {
+		d.config.NotFoundHandler = handler
+	})
+}
+
+func SetHandleMethodNotAllowed(b bool) Option {
+	return optionFunc(func(d *Dune) {
+		d.config.HandleMethodNotAllowed = b
+	})
+}
+
+func wrapHttpMiddleware(mw HTTPMiddlewareFunc) MiddlewareFunc {
 	return func(next Handler) Handler {
 		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
 			nextFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +124,10 @@ func toDuneMW(mw HTTPMiddlewareFunc) MiddlewareFunc {
 	}
 }
 
+func defaultNotFoundHandler(w http.ResponseWriter, r *http.Request, _ *Params) {
+	http.NotFound(w, r)
+}
+
 type log struct {
 	method  string
 	path    string
@@ -85,16 +135,18 @@ type log struct {
 }
 
 type Dune struct {
-	logs *[]log
-	base string
-	mws  []MiddlewareFunc
+	logs   *[]log
+	base   string
+	mws    []MiddlewareFunc
+	config *Config
 }
 
 func New(opts ...Option) *Dune {
 	d := &Dune{
-		logs: &[]log{},
-		base: "",
-		mws:  nil,
+		logs:   &[]log{},
+		base:   "",
+		mws:    nil,
+		config: defaultConfig,
 	}
 
 	for _, opt := range opts {
@@ -108,11 +160,7 @@ func (d *Dune) Group(path string, f func(d *Dune)) {
 	stack := make([]MiddlewareFunc, len(d.mws), len(d.mws))
 	copy(stack, d.mws)
 
-	f(&Dune{
-		logs: d.logs,
-		base: d.base + path,
-		mws:  stack,
-	})
+	f(&Dune{d.logs, d.base + path, stack, d.config})
 }
 
 func (d *Dune) With(middlewares ...MiddlewareFunc) *Dune {
@@ -120,7 +168,7 @@ func (d *Dune) With(middlewares ...MiddlewareFunc) *Dune {
 	copy(stack, d.mws)
 	stack = append(stack, middlewares...)
 
-	return &Dune{d.logs, d.base, stack}
+	return &Dune{d.logs, d.base, stack, d.config}
 }
 
 func (d *Dune) Mount(path string, dune *Dune) {
@@ -198,6 +246,7 @@ func (d *Dune) chain(handler Handler) Handler {
 
 type Router struct {
 	multiplexers map[string]muxInterface
+	config       *Config
 }
 
 func Compile(d *Dune) *Router {
@@ -207,7 +256,7 @@ func Compile(d *Dune) *Router {
 		logs   []log
 	}
 
-	r := &Router{map[string]muxInterface{}}
+	r := &Router{map[string]muxInterface{}, d.config}
 
 	methodsInfo := make(map[string]*info)
 
