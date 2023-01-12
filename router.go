@@ -1,7 +1,6 @@
 package dune
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"sync"
@@ -11,13 +10,11 @@ type MiddlewareFunc func(next Handler) Handler
 
 type HTTPMiddlewareFunc func(next http.Handler) http.Handler
 
-type paramKey struct{}
-
 func HandlerFunc(handler http.HandlerFunc) Handler {
 	return func(w http.ResponseWriter, r *http.Request, p *Params) {
 		if p != nil {
-			if v := r.Context().Value(paramKey{}); v == nil {
-				r = r.WithContext(context.WithValue(r.Context(), paramKey{}, p))
+			if !hasParamsCtx(r.Context()) {
+				r = r.WithContext(withParamsCtx(r.Context(), p))
 			}
 		}
 		handler.ServeHTTP(w, r)
@@ -72,8 +69,8 @@ func toDuneMW(mw HTTPMiddlewareFunc) MiddlewareFunc {
 			})
 
 			if ps != nil {
-				if v := r.Context().Value(paramKey{}); v == nil {
-					r = r.WithContext(context.WithValue(r.Context(), paramKey{}, ps))
+				if !hasParamsCtx(r.Context()) {
+					r = r.WithContext(withParamsCtx(r.Context(), ps))
 				}
 			}
 			mw(nextFn).ServeHTTP(w, r)
