@@ -301,20 +301,114 @@ func Compile(d *Dune) *Router {
 	return r
 }
 
-func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	mux := router.multiplexers[r.Method]
+func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.RawPath
+	if len(path) == 0 {
+		path = r.URL.Path
+	}
+
+	mux := rtr.multiplexers[r.Method]
 	if mux == nil {
-		http.NotFound(w, r)
+		if rtr.config.HandleMethodNotAllowed {
+			rtr.handleMethodNotAllowed(path, r.Method, w)
+		}
+
+		rtr.config.NotFoundHandler(w, r, nil)
 		return
 	}
 
-	handler, ps := mux.find(r.URL.Path)
-	if handler == nil {
-		http.NotFound(w, r)
+	handler, ps := mux.find(path)
+	if handler != nil {
+		handler(w, r, ps)
 		return
 	}
 
-	handler(w, r, ps)
+	// Look with/without trailing slash.
+	if rtr.config.OnTrailingSlashMatch != DoNone {
+		var clean string
+		if len(path) > 0 && path[len(path)-1] == '/' {
+			clean = path[:len(path)-1]
+		} else {
+			clean = path + "/"
+		}
+
+		handler, ps = mux.find(clean)
+		if handler != nil {
+			switch rtr.config.OnTrailingSlashMatch {
+			case DoRedirect:
+				r.URL.Path = clean
+				http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+				return
+			case DoExecute:
+				r.URL.Path = clean
+				handler(w, r, ps)
+				return
+			}
+		}
+	}
+
+	// Clean the path and retry...
+	if clean := cleanPath(path); clean != path {
+		handler, ps := mux.find(clean)
+		if handler == nil {
+			if len(clean) > 0 && clean[len(clean)-1] == '/' {
+				clean = clean[:len(clean)-1]
+			} else {
+				clean = clean + "/"
+			}
+
+			handler, ps = mux.find(clean)
+		}
+
+		if handler != nil {
+			switch rtr.config.OnFixedPathMatch {
+			case DoRedirect:
+				r.URL.Path = clean
+				http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+				return
+			case DoExecute:
+				r.URL.Path = clean
+				handler(w, r, ps)
+				return
+			}
+		}
+	}
+
+	// Look for allowed methods.
+	if rtr.config.HandleMethodNotAllowed {
+		rtr.handleMethodNotAllowed(path, r.Method, w)
+	}
+
+	rtr.config.NotFoundHandler(w, r, nil)
+}
+
+func (rtr *Router) handleMethodNotAllowed(path string, method string, w http.ResponseWriter) {
+	allowed := rtr.allowedHeader(path, method)
+
+	if len(allowed) > 0 {
+		w.Header().Add("Allow", allowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (rtr *Router) allowedHeader(path string, skipMethod string) string {
+	var allowed strings.Builder
+
+	for method, mux := range rtr.multiplexers {
+		if method == skipMethod {
+			continue
+		}
+
+		if handler, _ := mux.find(path); handler != nil {
+			if allowed.Len() != 0 {
+				allowed.WriteString(", ")
+			}
+
+			allowed.WriteString(method)
+		}
+	}
+
+	return allowed.String()
 }
 
 // Mux
