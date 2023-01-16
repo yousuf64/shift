@@ -242,6 +242,29 @@ func (d *Dune) chain(handler Handler) Handler {
 	return handler
 }
 
+type Route struct {
+	Method string
+	Path   string
+}
+
+func (d *Dune) Routes() (routes []Route) {
+	routes = make([]Route, 0, len(*d.logs))
+	all := len(d.base) == 0
+
+	for _, log := range *d.logs {
+		if all || strings.HasPrefix(log.path, d.base) {
+			last := len(routes)
+			routes = routes[:last+1]
+			routes[last] = Route{
+				Method: log.method,
+				Path:   log.path,
+			}
+		}
+	}
+
+	return
+}
+
 // Router
 
 type Router struct {
