@@ -2,6 +2,7 @@ package dune
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -9,7 +10,7 @@ import (
 type Action uint8
 
 const (
-	DoNone Action = iota
+	DoNothing Action = iota
 	DoRedirect
 	DoExecute
 )
@@ -268,44 +269,58 @@ func (d *Dune) Routes() (routes []Route) {
 // Router
 
 type Router struct {
-	multiplexers map[string]muxInterface
-	config       *Config
+	muxes       [9]muxInterface         // Stores mux objects for default http methods.
+	muxIndices  []int                   // Store indices of non-nil muxes.
+	customMuxes map[string]muxInterface // Stores mux objects for custom http methods.
+	config      *Config
 }
 
 func Compile(d *Dune) *Router {
-	type info struct {
-		static int
-		wc     int
-		logs   []log
+	type log struct {
+		static  bool
+		method  string
+		path    string
+		handler Handler
 	}
 
-	r := &Router{map[string]muxInterface{}, d.config}
+	type info struct {
+		totalStatic int
+		logs        []log
+	}
+
+	r := &Router{[9]muxInterface{}, nil, nil, d.config}
 
 	methodsInfo := make(map[string]*info)
 
+	// Arrange routes by the http methods. And count static routes.
 	for _, lg := range *d.logs {
 		if _, ok := methodsInfo[lg.method]; !ok {
 			methodsInfo[lg.method] = &info{}
 		}
 
-		inf := methodsInfo[lg.method]
-		inf.logs = append(inf.logs, lg)
-
 		static := isStatic(lg.path)
 
+		inf := methodsInfo[lg.method]
+		inf.logs = append(inf.logs, log{
+			static:  static,
+			method:  lg.method,
+			path:    lg.path,
+			handler: lg.handler,
+		})
+
 		if static {
-			inf.static++
-		} else {
-			inf.wc++
+			inf.totalStatic++
 		}
 	}
 
+	// Create a mux variant for each http method based on various parameters and register routes.
 	for meth, inf := range methodsInfo {
 		var mux muxInterface
 
-		total := len(inf.logs)
-		staticPercentage := float64(inf.static) / float64(total) * 100
+		total := len(inf.logs) // Total routes in the method.
+		staticPercentage := float64(inf.totalStatic) / float64(total) * 100
 
+		// Determine mux variant.
 		if staticPercentage == 100 {
 			mux = newStaticMux()
 		} else if staticPercentage >= 30 {
@@ -314,14 +329,79 @@ func Compile(d *Dune) *Router {
 			mux = newRadixMux()
 		}
 
+		// Register routes.
 		for _, log := range inf.logs {
-			mux.add(log.path, log.handler)
+			mux.add(log.path, log.static, log.handler)
 		}
 
-		r.multiplexers[meth] = mux
+		// Store mux.
+		if idx := methodIndex(meth); idx >= 0 {
+			r.muxes[idx] = mux
+
+			// Store indices of active muxes in ascending order.
+			r.muxIndices = append(r.muxIndices, idx)
+			sort.Slice(r.muxIndices, func(i, j int) bool {
+				return r.muxIndices[i] < r.muxIndices[j]
+			})
+		} else {
+			if r.customMuxes == nil {
+				r.customMuxes = make(map[string]muxInterface)
+			}
+			r.customMuxes[meth] = mux
+		}
 	}
 
 	return r
+}
+
+func methodIndex(method string) int {
+	switch method {
+	case MethodGet:
+		return 0
+	case MethodPost:
+		return 1
+	case MethodPut:
+		return 2
+	case MethodPatch:
+		return 3
+	case MethodDelete:
+		return 4
+	case MethodHead:
+		return 5
+	case MethodOptions:
+		return 6
+	case MethodTrace:
+		return 7
+	case MethodConnect:
+		return 8
+	default:
+		return -1
+	}
+}
+
+func methodString(idx int) string {
+	switch idx {
+	case 0:
+		return MethodGet
+	case 1:
+		return MethodPost
+	case 2:
+		return MethodPut
+	case 3:
+		return MethodPatch
+	case 4:
+		return MethodDelete
+	case 5:
+		return MethodHead
+	case 6:
+		return MethodOptions
+	case 7:
+		return MethodTrace
+	case 8:
+		return MethodConnect
+	default:
+		return ""
+	}
 }
 
 func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +410,13 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
 	}
 
-	mux := rtr.multiplexers[r.Method]
+	var mux muxInterface
+	if idx := methodIndex(r.Method); idx >= 0 {
+		mux = rtr.muxes[idx]
+	} else {
+		mux = rtr.customMuxes[r.Method]
+	}
+
 	if mux == nil {
 		if rtr.config.HandleMethodNotAllowed {
 			rtr.handleMethodNotAllowed(path, r.Method, w)
@@ -342,12 +428,16 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handler, ps := mux.find(path)
 	if handler != nil {
+		if ps == nil {
+			ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
+		}
+
 		handler(w, r, ps)
 		return
 	}
 
 	// Look with/without trailing slash.
-	if rtr.config.OnTrailingSlashMatch != DoNone {
+	if rtr.config.OnTrailingSlashMatch != DoNothing {
 		var clean string
 		if len(path) > 0 && path[len(path)-1] == '/' {
 			clean = path[:len(path)-1]
@@ -416,9 +506,27 @@ func (rtr *Router) handleMethodNotAllowed(path string, method string, w http.Res
 
 func (rtr *Router) allowedHeader(path string, skipMethod string) string {
 	var allowed strings.Builder
+	skipped := false
 
-	for method, mux := range rtr.multiplexers {
-		if method == skipMethod {
+	if skipMethodIdx := methodIndex(skipMethod); skipMethodIdx != -1 {
+		for _, idx := range rtr.muxIndices {
+			if !skipped && idx == skipMethodIdx {
+				skipped = true
+				continue
+			}
+
+			if handler, _ := rtr.muxes[idx].find(path); handler != nil {
+				if allowed.Len() != 0 {
+					allowed.WriteString(", ")
+				}
+
+				allowed.WriteString(methodString(idx))
+			}
+		}
+	}
+
+	for method, mux := range rtr.customMuxes {
+		if !skipped && method == skipMethod {
 			continue
 		}
 
@@ -437,42 +545,48 @@ func (rtr *Router) allowedHeader(path string, skipMethod string) string {
 // Mux
 
 type muxInterface interface {
-	add(path string, handler Handler)
+	add(path string, isStatic bool, handler Handler)
 	find(path string) (Handler, *Params)
 }
 
 type radixMux struct {
 	tree       *node
-	paramsPool sync.Pool
+	paramsPool *sync.Pool
 	maxParams  int
 }
 
 func newRadixMux() *radixMux {
 	return &radixMux{
 		tree:       newRootNode(),
-		paramsPool: sync.Pool{},
+		paramsPool: &sync.Pool{},
 		maxParams:  0,
 	}
 }
 
-func (mux *radixMux) add(path string, handler Handler) {
-	if handler == nil {
-		panic("handler cannot be nil")
+func (mux *radixMux) add(path string, isStatic bool, handler Handler) {
+	if isStatic {
+		mux.tree.insert(path, handler)
+		return
 	}
 
 	// Wrap handler to put Params obj back to the pool after handler execution.
-	pc := mux.tree.insert(path, func(w http.ResponseWriter, r *http.Request, p *Params) {
-		//r = r.WithContext(context.WithValue(r.Context(), 0, p))
-		handler(w, r, p)
+	pc := mux.tree.insert(path, releaseParamsHandler(mux.paramsPool, handler))
 
-		if p != nil {
-			mux.paramsPool.Put(p)
-		}
-	})
 	if mux.paramsPool.New == nil || pc > mux.maxParams {
 		mux.maxParams = pc
 		mux.paramsPool.New = func() any {
 			return newParams(pc)
+		}
+	}
+}
+
+// releaseParamsHandler releases the handler's params object into the sync.Pool after execution.
+func releaseParamsHandler(pool *sync.Pool, handler Handler) Handler {
+	return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		handler(w, r, ps)
+
+		if ps != nil {
+			pool.Put(ps)
 		}
 	}
 }
@@ -506,7 +620,11 @@ func newStaticMux() *staticMux {
 	}
 }
 
-func (mux *staticMux) add(path string, handler Handler) {
+func (mux *staticMux) add(path string, isStatic bool, handler Handler) {
+	if !isStatic {
+		return
+	}
+
 	if len(path) >= len(mux.sizePlot) {
 		// Grow slice.
 		mux.sizePlot = append(mux.sizePlot, make([]bool, len(path)-len(mux.sizePlot)+1)...)
@@ -537,12 +655,11 @@ func newHybridMux() *hybridMux {
 	return &hybridMux{newStaticMux(), newRadixMux()}
 }
 
-func (mux *hybridMux) add(path string, handler Handler) {
-	static := isStatic(path)
-	if static {
-		mux.static.add(path, handler)
+func (mux *hybridMux) add(path string, isStatic bool, handler Handler) {
+	if isStatic {
+		mux.static.add(path, isStatic, handler)
 	} else {
-		mux.radix.add(path, handler)
+		mux.radix.add(path, isStatic, handler)
 	}
 }
 
