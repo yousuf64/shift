@@ -1487,6 +1487,592 @@ func BenchmarkRouter_ServeHTTP_ParamRoutes_RandomMethods(b *testing.B) {
 	}
 }
 
+func TestRouter_BuiltInHTTPMethods(t *testing.T) {
+	d := New()
+
+	f := func(method string) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			assert(t, r.Method == method, fmt.Sprintf("http method > expected: %s, got: %s", r.Method, method))
+		}
+	}
+
+	d.Get("/foo", f(MethodGet))
+	d.Post("/foo", f(MethodPost))
+	d.Post("/bar", f(MethodPost))
+	d.Put("/bar", f(MethodPut))
+	d.Patch("/xyz", f(MethodPatch))
+	d.Head("/abc", f(MethodHead))
+	d.Options("/abc", f(MethodOptions))
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest(MethodGet, "/foo", nil)
+	r2, _ := http.NewRequest(MethodPost, "/foo", nil)
+	r3, _ := http.NewRequest(MethodPost, "/bar", nil)
+	r4, _ := http.NewRequest(MethodPut, "/bar", nil)
+	r5, _ := http.NewRequest(MethodPatch, "/xyz", nil)
+	r6, _ := http.NewRequest(MethodHead, "/abc", nil)
+	r7, _ := http.NewRequest(MethodOptions, "/abc", nil)
+
+	rw := httptest.NewRecorder()
+	requests := [...]*http.Request{r1, r2, r3, r4, r5, r6, r7}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+	}
+
+}
+
+func TestRouter_CustomHTTPMethods(t *testing.T) {
+	d := New()
+
+	f := func(method string) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			assert(t, r.Method == method, fmt.Sprintf("http method > expected: %s, got: %s", method, r.Method))
+		}
+	}
+
+	d.Map(Methods{"FOO"}, "/foo", f("FOO"))
+	d.Map(Methods{"BAR"}, "/bar", f("BAR"))
+	d.Map(Methods{"XYZ"}, "/xyz", f("XYZ"))
+	d.Map(Methods{"DUNE"}, "/*loc", f("DUNE"))
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest("FOO", "/foo", nil)
+	r2, _ := http.NewRequest("BAR", "/bar", nil)
+	r3, _ := http.NewRequest("XYZ", "/xyz", nil)
+	r4, _ := http.NewRequest("DUNE", "/k8", nil)
+	r5, _ := http.NewRequest("DUNE", "/etcd", nil)
+
+	rw := httptest.NewRecorder()
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+	}
+}
+
+func TestRouter_HTTPMethods(t *testing.T) {
+	d := New()
+
+	f := func(method string) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			assert(t, r.Method == method, fmt.Sprintf("http method > expected: %s, got: %s", r.Method, method))
+		}
+	}
+
+	d.Get("/foo", f(MethodGet))
+	d.Post("/foo", f(MethodPost))
+	d.Post("/bar", f(MethodPost))
+	d.Put("/bar", f(MethodPut))
+	d.Patch("/xyz", f(MethodPatch))
+	d.Head("/abc", f(MethodHead))
+	d.Options("/abc", f(MethodOptions))
+	d.Map(Methods{"FOO"}, "/foo", f("FOO"))
+	d.Map(Methods{"BAR"}, "/bar", f("BAR"))
+	d.Map(Methods{"XYZ"}, "/xyz", f("XYZ"))
+	d.Map(Methods{"DUNE"}, "/*loc", f("DUNE"))
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest(MethodGet, "/foo", nil)
+	r2, _ := http.NewRequest(MethodPost, "/foo", nil)
+	r3, _ := http.NewRequest(MethodPost, "/bar", nil)
+	r4, _ := http.NewRequest(MethodPut, "/bar", nil)
+	r5, _ := http.NewRequest(MethodPatch, "/xyz", nil)
+	r6, _ := http.NewRequest(MethodHead, "/abc", nil)
+	r7, _ := http.NewRequest(MethodOptions, "/abc", nil)
+	r8, _ := http.NewRequest("FOO", "/foo", nil)
+	r9, _ := http.NewRequest("BAR", "/bar", nil)
+	r10, _ := http.NewRequest("XYZ", "/xyz", nil)
+	r11, _ := http.NewRequest("DUNE", "/k8", nil)
+	r12, _ := http.NewRequest("DUNE", "/etcd", nil)
+
+	rw := httptest.NewRecorder()
+	requests := [...]*http.Request{r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+	}
+
+}
+
+func TestRouter_DefaultNotFoundHandler(t *testing.T) {
+	d := New()
+
+	d.Get("/foo/foo/foo", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, "/foo/foo", nil)
+
+	r.ServeHTTP(rw, req)
+	assert(t, rw.Code == http.StatusNotFound, fmt.Sprintf("expected: %d, got: %d", http.StatusNotFound, rw.Code))
+}
+
+func TestRouter_CustomNotFoundHandler(t *testing.T) {
+	response := "hello from not found handler!"
+
+	d := New(
+		WithNotFoundHandler(func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = w.Write([]byte(response))
+		}))
+
+	d.Get("/foo/foo/foo", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, "/foo/foo", nil)
+
+	r.ServeHTTP(rw, req)
+	assert(t, rw.Code == http.StatusNotImplemented, fmt.Sprintf("expected: %d, got: %d", http.StatusNotImplemented, rw.Code))
+	assert(t, rw.Body.String() == response, fmt.Sprintf("expected: %s, got: %s", response, rw.Body.String()))
+}
+
+func TestRouter_TrailingSlash_DoNothing(t *testing.T) {
+	d := New(OnTrailingSlashMatch(DoNothing))
+
+	d.Get("/foo", fakeHandler())
+	d.Get("/bar/", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	r1, _ := http.NewRequest(MethodGet, "/foo/", nil)
+	r2, _ := http.NewRequest(MethodGet, "/bar", nil)
+
+	requests := [...]*http.Request{r1, r2}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code != http.StatusOK && rw.Code != http.StatusMovedPermanently,
+			fmt.Sprintf("%s > expected: not found, got: %d", req.URL.String(), rw.Code))
+	}
+}
+
+func TestRouter_TrailingSlash_DoExecute(t *testing.T) {
+	d := New(OnTrailingSlashMatch(DoExecute))
+
+	f := func(path string) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			assert(t, path == r.URL.String(), fmt.Sprintf("path assertion > expected: %s, got: %s", path, r.URL.String()))
+		}
+	}
+
+	d.Get("/foo", f("/foo"))
+	d.Get("/bar/", f("/bar/"))
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	r1, _ := http.NewRequest(MethodGet, "/foo/", nil)
+	r2, _ := http.NewRequest(MethodGet, "/bar", nil)
+
+	requests := [...]*http.Request{r1, r2}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusOK, rw.Code))
+	}
+}
+
+func TestRouter_TrailingSlash_DoRedirect(t *testing.T) {
+	d := New(OnTrailingSlashMatch(DoRedirect))
+
+	d.Get("/foo", fakeHandler())
+	d.Get("/bar/", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	r1, _ := http.NewRequest(MethodGet, "/foo/", nil)
+	r2, _ := http.NewRequest(MethodGet, "/bar", nil)
+
+	requests := [...]*http.Request{r1, r2}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusMovedPermanently,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusMovedPermanently, rw.Code))
+	}
+}
+
+func TestRouter_FixedPath_DoNothing(t *testing.T) {
+	d := New(OnFixedPathMatch(DoNothing))
+
+	d.Get("/abc/def", fakeHandler())
+	d.Get("/abc/def/ghi", fakeHandler())
+	d.Get("/mno", fakeHandler())
+	d.Get("/abc/def/jkl", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+
+	r1, _ := http.NewRequest(MethodGet, "abc/def", nil)
+	r2, _ := http.NewRequest(MethodGet, "/abc//def//ghi", nil)
+	r3, _ := http.NewRequest(MethodGet, "/./abc/def", nil)
+	r4, _ := http.NewRequest(MethodGet, "/abc/def/../../../ghi/jkl/../../../mno", nil)
+	r5, _ := http.NewRequest(MethodGet, "/abc/def/ghi/../jkl", nil)
+
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code != http.StatusOK && rw.Code != http.StatusMovedPermanently,
+			fmt.Sprintf("%s > expected: not found, got: %d", req.URL.String(), rw.Code))
+	}
+}
+
+func TestRouter_FixedPath_DoExecute(t *testing.T) {
+	d := New(OnFixedPathMatch(DoExecute))
+
+	d.Get("/abc/def", fakeHandler())
+	d.Get("/abc/def/ghi", fakeHandler())
+	d.Get("/mno", fakeHandler())
+	d.Get("/abc/def/jkl", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+
+	r1, _ := http.NewRequest(MethodGet, "abc/def", nil)
+	r2, _ := http.NewRequest(MethodGet, "/abc//def//ghi", nil)
+	r3, _ := http.NewRequest(MethodGet, "/./abc/def", nil)
+	r4, _ := http.NewRequest(MethodGet, "/abc/def/../../../ghi/jkl/../../../mno", nil)
+	r5, _ := http.NewRequest(MethodGet, "/abc/def/ghi/../jkl", nil)
+
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusOK, rw.Code))
+	}
+}
+func TestRouter_FixedPath_DoRedirect(t *testing.T) {
+	d := New(OnFixedPathMatch(DoRedirect))
+
+	d.Get("/abc/def", fakeHandler())
+	d.Get("/abc/def/ghi", fakeHandler())
+	d.Get("/mno", fakeHandler())
+	d.Get("/abc/def/jkl", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+
+	r1, _ := http.NewRequest(MethodGet, "abc/def", nil)
+	r2, _ := http.NewRequest(MethodGet, "/abc//def//ghi", nil)
+	r3, _ := http.NewRequest(MethodGet, "/./abc/def", nil)
+	r4, _ := http.NewRequest(MethodGet, "/abc/def/../../../ghi/jkl/../../../mno", nil)
+	r5, _ := http.NewRequest(MethodGet, "/abc/def/ghi/../jkl", nil)
+
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusMovedPermanently,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusMovedPermanently, rw.Code))
+	}
+}
+
+func TestRouter_MethodNotAllowed_On(t *testing.T) {
+	d := New(SetHandleMethodNotAllowed(true))
+
+	d.Get("/foo/foo", fakeHandler())
+	d.Post("/foo/foo", fakeHandler())
+	d.Trace("/foo/foo", fakeHandler())
+	d.Connect("/foo/foo", fakeHandler())
+	d.Map(Methods{"BAR", "XYZ"}, "/foo/foo", fakeHandler())
+	d.Options("/abc", fakeHandler())
+
+	r := Compile(d)
+
+	expected := []string{MethodGet, MethodPost, MethodTrace, MethodConnect, "BAR", "XYZ"}
+	sort.Slice(expected, func(i, j int) bool {
+		return expected[i] < expected[j]
+	})
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodOptions, "/foo/foo", nil)
+
+	r.ServeHTTP(rw, req)
+
+	allow := strings.Split(rw.Header().Get("Allow"), ", ")
+	assert(t, len(expected) == len(allow), fmt.Sprintf("allow list length > expected: %d, got: %d", len(expected), len(allow)))
+
+	sort.Slice(allow, func(i, j int) bool {
+		return allow[i] < allow[j]
+	})
+
+	for i := 0; i < len(expected); i++ {
+		assert(t, expected[i] == allow[i], fmt.Sprintf("allow method > expected: %s, got: %s", expected[i], allow[i]))
+	}
+}
+
+func TestRouter_MethodNotAllowed_Off(t *testing.T) {
+	d := New(SetHandleMethodNotAllowed(false))
+
+	d.Get("/foo/foo", fakeHandler())
+	d.Post("/foo/foo", fakeHandler())
+	d.Patch("/foo/foo", fakeHandler())
+	d.Put("/foo/foo", fakeHandler())
+	d.Map(Methods{"BAR", "XYZ"}, "/foo/foo", fakeHandler())
+	d.Options("/abc", fakeHandler())
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodOptions, "/foo/foo", nil)
+
+	r.ServeHTTP(rw, req)
+	assert(t, rw.Code == http.StatusNotFound, fmt.Sprintf("http status > expected: %d, got: %d", http.StatusNotFound, rw.Code))
+
+	allow := rw.Header().Get("Allow")
+	assert(t, allow == "", fmt.Sprintf("allow header > expected: empty, got: %s", allow))
+}
+
+func TestRouter_20ParamsAllocs(t *testing.T) {
+	d := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 20; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		for _, key := range paramKeys {
+			if v := ps.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+	}
+
+	d.Get(template.String(), f)
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1_000, func() {
+		r.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func TestRouter_200ParamsAllocs(t *testing.T) {
+	d := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 200; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		for _, key := range paramKeys {
+			if v := ps.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+	}
+
+	d.Get(template.String(), f)
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1_000, func() {
+		r.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func TestRouter_2000ParamsAllocs(t *testing.T) {
+	d := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 2_000; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		for _, key := range paramKeys {
+			if v := ps.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+	}
+
+	d.Get(template.String(), f)
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1_000, func() {
+		r.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func BenchmarkRouter_2000Params(b *testing.B) {
+	d := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 20; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		for _, key := range paramKeys {
+			ps.Get(key)
+		}
+	}
+
+	d.Get(template.String(), f)
+
+	r := Compile(d)
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(MethodGet, path.String(), nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		r.ServeHTTP(rw, req)
+	}
+}
+
+func TestRouter_StaticRoutes_EmptyParamsRef(t *testing.T) {
+	d := New()
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		assert(t, ps == emptyParams, fmt.Sprintf("params ref > expected: %p, got: %p", emptyParams, ps))
+	}
+
+	d.Get("/foo/foo", f)
+	d.Post("/foo/foo", f)
+	d.Head("/bar/index.html", f)
+	d.Get("/dune/config.html", f)
+	d.Get("/dune/up.yaml", f)
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest(MethodGet, "/foo/foo", nil)
+	r2, _ := http.NewRequest(MethodPost, "/foo/foo", nil)
+	r3, _ := http.NewRequest(MethodHead, "/bar/index.html", nil)
+	r4, _ := http.NewRequest(MethodGet, "/dune/config.html", nil)
+	r5, _ := http.NewRequest(MethodGet, "/dune/up.yaml", nil)
+
+	rw := httptest.NewRecorder()
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		r.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+	}
+}
+
+func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
+	d := New()
+
+	var wg sync.WaitGroup
+
+	paramAccessor := func(ps *Params) {
+		ps.set("x", "y") // though the func is not exported, let's ensure we don't add any concurrent unsafe behavior.
+		ps.Get("id")
+		ps.ForEach(func(k, v string) bool {
+			return true
+		})
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, ps *Params) {
+		defer func() {
+			b := recover()
+			assert(t, b == nil, fmt.Sprintf("recovery > expected: no panic, got: %v", b))
+			wg.Done()
+		}()
+
+		assert(t, ps == emptyParams, fmt.Sprintf("params ref > expected: %p, got: %p", emptyParams, ps))
+		paramAccessor(ps)
+	}
+
+	d.Get("/foo/foo", f)
+	d.Post("/foo/foo", f)
+	d.Head("/bar/index.html", f)
+	d.Get("/dune/config.html", f)
+	d.Get("/dune/up.yaml", f)
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest(MethodGet, "/foo/foo", nil)
+	r2, _ := http.NewRequest(MethodPost, "/foo/foo", nil)
+	r3, _ := http.NewRequest(MethodHead, "/bar/index.html", nil)
+	r4, _ := http.NewRequest(MethodGet, "/dune/config.html", nil)
+	r5, _ := http.NewRequest(MethodGet, "/dune/up.yaml", nil)
+
+	rw := httptest.NewRecorder()
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for i := 0; i < 100; i++ {
+		for _, req := range requests {
+			wg.Add(1)
+			go func(req *http.Request) {
+				r.ServeHTTP(rw, req)
+				assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+			}(req)
+		}
+	}
+
+	wg.Wait()
+}
+
 func assert(t *testing.T, expectation bool, message string) {
 	assertOn(t, true, expectation, message)
 }
