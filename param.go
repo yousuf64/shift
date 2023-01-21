@@ -12,7 +12,7 @@ type Param struct {
 
 type Params struct {
 	params []Param
-	i      uint8
+	i      int
 	max    int
 }
 
@@ -24,7 +24,7 @@ func newParams(cap int) *Params {
 }
 
 func (p *Params) set(k, v string) {
-	if int(p.i) >= p.max {
+	if p.i >= p.max {
 		return
 	}
 
