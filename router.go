@@ -144,10 +144,15 @@ type Dune struct {
 
 func New(opts ...Option) *Dune {
 	d := &Dune{
-		logs:   &[]log{},
-		base:   "",
-		mws:    nil,
-		config: defaultConfig,
+		logs: &[]log{},
+		base: "",
+		mws:  nil,
+		config: &Config{
+			defaultConfig.OnTrailingSlashMatch,
+			defaultConfig.OnFixedPathMatch,
+			defaultConfig.NotFoundHandler,
+			defaultConfig.HandleMethodNotAllowed,
+		},
 	}
 
 	for _, opt := range opts {
