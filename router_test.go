@@ -3,13 +3,56 @@ package dune
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
 )
 
+type routerTestItem1 struct {
+	method       string
+	path         string
+	valid        bool
+	pathTemplate string
+	params       map[string]string
+}
+
+type routerTestItem2 struct {
+	method       string
+	path         string
+	valid        bool
+	pathTemplate string
+	params       map[string]string
+	paramsCount  int
+}
+
+type routerScenario = []routerTestItem1
+
+type routerTestTable2 = []routerTestItem2
+
+type mockRW struct {
+	http.ResponseWriter
+
+	code int
+}
+
+func (m *mockRW) Write([]byte) (int, error) {
+	return 0, nil
+}
+
+func (m *mockRW) WriteHeader(statusCode int) {
+	m.code = statusCode
+}
+
+func (m *mockRW) Header() http.Header {
+	return map[string][]string{}
+}
+
 func newTestDune() *Dune {
 	return New(
-		OnTrailingSlashMatch(DoNone),
-		OnFixedPathMatch(DoNone),
+		OnTrailingSlashMatch(DoNothing),
+		OnFixedPathMatch(DoNothing),
 		SetHandleMethodNotAllowed(false),
 	)
 }
@@ -44,7 +87,7 @@ func TestRouter_ServeHTTP_StaticRoutes(t *testing.T) {
 		d.Map(Methods{meth}, path, rec.Handler(path))
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		{method: MethodGet, path: "/users/find", valid: true, pathTemplate: "/users/find"},
 		{method: MethodGet, path: "/users/delete", valid: true, pathTemplate: "/users/delete"},
 		{method: MethodGet, path: "/users/all/dump", valid: true, pathTemplate: "/users/all/dump"},
@@ -110,7 +153,7 @@ func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
 		d.Map(Methods{meth}, path, rec.Handler(path))
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		{method: MethodGet, path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
 		{method: MethodGet, path: "/users/find/yousuf/import", valid: false, pathTemplate: "", params: nil},
 		{method: MethodDelete, path: "/users/john/delete", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
@@ -164,7 +207,7 @@ func TestRouter_ServeHTTP_WildcardRoutes(t *testing.T) {
 		d.Map(Methods{meth}, path, rec.Handler(path))
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		{method: MethodGet, path: "/messages/publish", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": "publish"}},
 		{method: MethodGet, path: "/messages/publish/OrderPlaced", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": "publish/OrderPlaced"}},
 		{method: MethodGet, path: "/messages/", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": ""}},
@@ -250,7 +293,7 @@ func TestRouter_ServeHTTP_MixedRoutes(t *testing.T) {
 		d.Map(Methods{meth}, path, rec.Handler(path))
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		{method: MethodGet, path: "/users/find", valid: true, pathTemplate: "/users/find"},
 		{method: MethodGet, path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
 		{method: MethodGet, path: "/users/find/yousuf/import", valid: false, pathTemplate: "", params: nil},
@@ -523,7 +566,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 			d.Map(Methods{meth}, path, rec.Handler(path))
 		}
 
-		tt := routerTestTable1{
+		tt := routerScenario{
 			{method: MethodGet, path: "/better-call-saul_", valid: true, pathTemplate: "/better-call-saul_", params: nil},
 			{method: MethodGet, path: "/better-call-saul_6", valid: true, pathTemplate: "/better-call-saul_*season", params: map[string]string{"season": "6"}},
 		}
@@ -545,7 +588,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 			d.Map(Methods{meth}, path, rec.Handler(path))
 		}
 
-		tt := routerTestTable1{
+		tt := routerScenario{
 			{method: MethodGet, path: "/dark_3", valid: true, pathTemplate: "/dark_:season", params: map[string]string{"season": "3"}},
 			{method: MethodGet, path: "/dark_", valid: true, pathTemplate: "/dark_*wc", params: map[string]string{"wc": ""}},
 		}
@@ -555,46 +598,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 
 }
 
-type routerTestItem1 struct {
-	method       string
-	path         string
-	valid        bool
-	pathTemplate string
-	params       map[string]string
-}
-
-type routerTestItem2 struct {
-	method       string
-	path         string
-	valid        bool
-	pathTemplate string
-	params       map[string]string
-	paramsCount  int
-}
-
-type routerTestTable1 = []routerTestItem1
-
-type routerTestTable2 = []routerTestItem2
-
-type mockRW struct {
-	http.ResponseWriter
-
-	code int
-}
-
-func (m *mockRW) Write([]byte) (int, error) {
-	return 0, nil
-}
-
-func (m *mockRW) WriteHeader(statusCode int) {
-	m.code = statusCode
-}
-
-func (m *mockRW) Header() http.Header {
-	return map[string][]string{}
-}
-
-func testRouter_ServeHTTP(t *testing.T, r *Router, rec *recorder, table routerTestTable1) {
+func testRouter_ServeHTTP(t *testing.T, r *Router, rec *recorder, table routerScenario) {
 	for _, tx := range table {
 		rw := &mockRW{}
 		req, _ := http.NewRequest(tx.method, tx.path, nil)
@@ -643,6 +647,10 @@ func testRouter_ServeHTTP_2(t *testing.T, r *Router, rec *recorder, table router
 				assert(t, actual == v, fmt.Sprintf("%s > param '%s' > expected value: '%s', got '%s'", tx.path, k, v, actual))
 			}
 		}
+
+		// Reset recorder...
+		rec.path = ""
+		rec.params = nil
 	}
 }
 
@@ -822,7 +830,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_1(b *testing.B) {
 		d.Map(Methods{meth}, path, fakeHandler())
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
 
 		{method: MethodGet, path: "/search/gophers/go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
@@ -970,7 +978,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_2(b *testing.B) {
 		d.Map(Methods{meth}, path, fakeHandler())
 	}
 
-	tt := routerTestTable1{
+	tt := routerScenario{
 		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
 
 		{method: MethodGet, path: "/search/gophers/go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
@@ -1111,49 +1119,39 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
 		"/file":        MethodDelete,
 		"/file/remove": MethodDelete,
 
-		//"/hero-:name": MethodGet,
+		"/hero-:name": MethodGet,
 	}
 
 	for path, meth := range paths {
 		d.Map(Methods{meth}, path, fakeHandler())
 	}
 
-	tt := routerTestTable1{
-		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
-
+	tt := routerScenario{
 		{method: MethodGet, path: "/users/find", valid: true, pathTemplate: "/users/find"},
 		{method: MethodGet, path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
-		//{method: MethodGet, path: "/users/find/yousuf/import", valid: false, pathTemplate: "", params: nil},
 		{method: MethodGet, path: "/users/john/delete", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
 		{method: MethodGet, path: "/users/911/update", valid: true, pathTemplate: "/users/:id/update", params: map[string]string{"id": "911"}},
 		{method: MethodGet, path: "/users/groups/120/dump", valid: true, pathTemplate: "/users/groups/:groupId/dump", params: map[string]string{"groupId": "120"}},
 		{method: MethodGet, path: "/users/groups/230/export", valid: true, pathTemplate: "/users/groups/:groupId/export", params: map[string]string{"groupId": "230"}},
-		//{method: MethodGet, path: "/users/groups/230/export/csv", valid: false, pathTemplate: "", params: nil},
 		{method: MethodGet, path: "/users/delete", valid: true, pathTemplate: "/users/delete"},
 		{method: MethodGet, path: "/users/all/dump", valid: true, pathTemplate: "/users/all/dump"},
 		{method: MethodGet, path: "/users/all/export", valid: true, pathTemplate: "/users/all/export"},
-		//{method: MethodGet, path: "/users/all/import", valid: false, pathTemplate: ""},
 		{method: MethodGet, path: "/users/any", valid: true, pathTemplate: "/users/any"},
-		//{method: MethodGet, path: "/users/911", valid: false, pathTemplate: ""},
 
 		{method: MethodPost, path: "/search", valid: true, pathTemplate: "/search"},
 		{method: MethodPost, path: "/search/go", valid: true, pathTemplate: "/search/go"},
 		{method: MethodPost, path: "/search/go1.html", valid: true, pathTemplate: "/search/go1.html"},
 		{method: MethodPost, path: "/search/index.html", valid: true, pathTemplate: "/search/index.html"},
-		//{method: MethodGet, path: "/search/index.html/from-cache", valid: false, pathTemplate: ""},
 		{method: MethodPost, path: "/search/contact.html", valid: true, pathTemplate: "/search/:q"},
 		{method: MethodPost, path: "/search/ducks", valid: true, pathTemplate: "/search/:q", params: map[string]string{"q": "ducks"}},
 		{method: MethodPost, path: "/search/gophers/go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
-		//{method: MethodGet, path: "/search/gophers/rust", valid: false, pathTemplate: "", params: nil},
 		{method: MethodPost, path: "/search/nature/go1.html", valid: true, pathTemplate: "/search/:q/go1.html", params: map[string]string{"q": "nature"}},
 		{method: MethodPost, path: "/search/generics/types/index.html", valid: true, pathTemplate: "/search/:q/:w/index.html", params: map[string]string{"q": "generics", "w": "types"}},
 
 		{method: MethodPut, path: "/src/paris/invalid", valid: true, pathTemplate: "/src/:dest/invalid", params: map[string]string{"dest": "paris"}},
 		{method: MethodPut, path: "/src/invalid", valid: true, pathTemplate: "/src/invalid"},
-		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
 		{method: MethodPut, path: "/src1/oslo", valid: true, pathTemplate: "/src1/:dest", params: map[string]string{"dest": "oslo"}},
 		{method: MethodPut, path: "/src1", valid: true, pathTemplate: "/src1"},
-		//{method: MethodGet, path: "/src1/toronto/ontario", valid: false, pathTemplate: "", params: nil},
 
 		{method: MethodPatch, path: "/signal-r/protos/reflection", valid: true, pathTemplate: "/signal-r/:cmd/reflection", params: map[string]string{"cmd": "protos"}},
 		{method: MethodPatch, path: "/signal-r", valid: true, pathTemplate: "/signal-r"},
@@ -1162,30 +1160,24 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
 
 		{method: MethodHead, path: "/query/unknown/pages", valid: true, pathTemplate: "/query/unknown/pages"},
 		{method: MethodHead, path: "/query/10/amazing/reset/single", valid: true, pathTemplate: "/query/:key/:val/:cmd/single", params: map[string]string{"key": "10", "val": "amazing", "cmd": "reset"}},
-		//{method: MethodGet, path: "/query/10/amazing/reset/single/1", valid: false, pathTemplate: "", params: nil},
 		{method: MethodHead, path: "/query/911", valid: true, pathTemplate: "/query/:key", params: map[string]string{"key": "911"}},
 		{method: MethodHead, path: "/query/99/sup/update-ttl", valid: true, pathTemplate: "/query/:key/:val/:cmd", params: map[string]string{"key": "99", "val": "sup", "cmd": "update-ttl"}},
 		{method: MethodHead, path: "/query/46/hello", valid: true, pathTemplate: "/query/:key/:val", params: map[string]string{"key": "46", "val": "hello"}},
 		{method: MethodHead, path: "/query/unknown", valid: true, pathTemplate: "/query/unknown"},
 		{method: MethodHead, path: "/query/untold", valid: true, pathTemplate: "/query/untold"},
-		//{method: MethodGet, path: "/query", valid: false, pathTemplate: ""},
 
 		{method: MethodConnect, path: "/questions/1001", valid: true, pathTemplate: "/questions/:index", params: map[string]string{"index": "1001"}},
 		{method: MethodConnect, path: "/questions", valid: true, pathTemplate: "/questions"},
 
 		{method: MethodDelete, path: "/graphql", valid: true, pathTemplate: "/graphql"},
 		{method: MethodDelete, path: "/graph", valid: true, pathTemplate: "/graph"},
-		//{method: MethodGet, path: "/graphq", valid: false, pathTemplate: ""},
 		{method: MethodDelete, path: "/graphql/cmd", valid: true, pathTemplate: "/graphql/cmd", params: nil},
-		//{method: MethodGet, path: "/graphql/stream/tcp", valid: false, pathTemplate: "", params: nil},
 
 		{method: MethodDelete, path: "/file", valid: true, pathTemplate: "/file", params: nil},
 		{method: MethodDelete, path: "/file/remove", valid: true, pathTemplate: "/file/remove", params: nil},
-		//{method: MethodGet, path: "/gophers.html/fetch", valid: false, pathTemplate: "", params: nil},
 
-		//{method: MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
-		//{method: MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
-		//{method: MethodGet, path: "/hero-", valid: false, pathTemplate: "", params: nil},
+		{method: MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
+		{method: MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
 	}
 
 	requests := make([]*http.Request, len(tt))
@@ -1257,51 +1249,39 @@ func TestRouterMallocs_ServeHTTP_MixedRoutes(t *testing.T) {
 		"/file":        MethodDelete,
 		"/file/remove": MethodDelete,
 
-		//"/hero-:name": MethodGet,
+		"/hero-:name": MethodGet,
 	}
 
 	for path, meth := range paths {
 		d.Map(Methods{meth}, path, fakeHandler())
 	}
 
-	tt := routerTestTable1{
-		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
-
-		//{method: MethodPost, path: "/search/gophers/go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
-
+	tt := routerScenario{
 		{method: MethodGet, path: "/users/find", valid: true, pathTemplate: "/users/find"},
 		{method: MethodGet, path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
-		//{method: MethodGet, path: "/users/find/yousuf/import", valid: false, pathTemplate: "", params: nil},
 		{method: MethodGet, path: "/users/john/delete", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
 		{method: MethodGet, path: "/users/911/update", valid: true, pathTemplate: "/users/:id/update", params: map[string]string{"id": "911"}},
 		{method: MethodGet, path: "/users/groups/120/dump", valid: true, pathTemplate: "/users/groups/:groupId/dump", params: map[string]string{"groupId": "120"}},
 		{method: MethodGet, path: "/users/groups/230/export", valid: true, pathTemplate: "/users/groups/:groupId/export", params: map[string]string{"groupId": "230"}},
-		//{method: MethodGet, path: "/users/groups/230/export/csv", valid: false, pathTemplate: "", params: nil},
 		{method: MethodGet, path: "/users/delete", valid: true, pathTemplate: "/users/delete"},
 		{method: MethodGet, path: "/users/all/dump", valid: true, pathTemplate: "/users/all/dump"},
 		{method: MethodGet, path: "/users/all/export", valid: true, pathTemplate: "/users/all/export"},
-		//{method: MethodGet, path: "/users/all/import", valid: false, pathTemplate: ""},
 		{method: MethodGet, path: "/users/any", valid: true, pathTemplate: "/users/any"},
-		//{method: MethodGet, path: "/users/911", valid: false, pathTemplate: ""},
 
 		{method: MethodPost, path: "/search", valid: true, pathTemplate: "/search"},
 		{method: MethodPost, path: "/search/go", valid: true, pathTemplate: "/search/go"},
 		{method: MethodPost, path: "/search/go1.html", valid: true, pathTemplate: "/search/go1.html"},
 		{method: MethodPost, path: "/search/index.html", valid: true, pathTemplate: "/search/index.html"},
-		//{method: MethodGet, path: "/search/index.html/from-cache", valid: false, pathTemplate: ""},
 		{method: MethodPost, path: "/search/contact.html", valid: true, pathTemplate: "/search/:q"},
 		{method: MethodPost, path: "/search/ducks", valid: true, pathTemplate: "/search/:q", params: map[string]string{"q": "ducks"}},
 		{method: MethodPost, path: "/search/gophers/go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
-		//{method: MethodGet, path: "/search/gophers/rust", valid: false, pathTemplate: "", params: nil},
 		{method: MethodPost, path: "/search/nature/go1.html", valid: true, pathTemplate: "/search/:q/go1.html", params: map[string]string{"q": "nature"}},
 		{method: MethodPost, path: "/search/generics/types/index.html", valid: true, pathTemplate: "/search/:q/:w/index.html", params: map[string]string{"q": "generics", "w": "types"}},
 
 		{method: MethodPut, path: "/src/paris/invalid", valid: true, pathTemplate: "/src/:dest/invalid", params: map[string]string{"dest": "paris"}},
 		{method: MethodPut, path: "/src/invalid", valid: true, pathTemplate: "/src/invalid"},
-		//{method: MethodGet, path: "/src", valid: false, pathTemplate: ""},
 		{method: MethodPut, path: "/src1/oslo", valid: true, pathTemplate: "/src1/:dest", params: map[string]string{"dest": "oslo"}},
 		{method: MethodPut, path: "/src1", valid: true, pathTemplate: "/src1"},
-		//{method: MethodGet, path: "/src1/toronto/ontario", valid: false, pathTemplate: "", params: nil},
 
 		{method: MethodPatch, path: "/signal-r/protos/reflection", valid: true, pathTemplate: "/signal-r/:cmd/reflection", params: map[string]string{"cmd": "protos"}},
 		{method: MethodPatch, path: "/signal-r", valid: true, pathTemplate: "/signal-r"},
@@ -1310,30 +1290,24 @@ func TestRouterMallocs_ServeHTTP_MixedRoutes(t *testing.T) {
 
 		{method: MethodHead, path: "/query/unknown/pages", valid: true, pathTemplate: "/query/unknown/pages"},
 		{method: MethodHead, path: "/query/10/amazing/reset/single", valid: true, pathTemplate: "/query/:key/:val/:cmd/single", params: map[string]string{"key": "10", "val": "amazing", "cmd": "reset"}},
-		//{method: MethodGet, path: "/query/10/amazing/reset/single/1", valid: false, pathTemplate: "", params: nil},
 		{method: MethodHead, path: "/query/911", valid: true, pathTemplate: "/query/:key", params: map[string]string{"key": "911"}},
 		{method: MethodHead, path: "/query/99/sup/update-ttl", valid: true, pathTemplate: "/query/:key/:val/:cmd", params: map[string]string{"key": "99", "val": "sup", "cmd": "update-ttl"}},
 		{method: MethodHead, path: "/query/46/hello", valid: true, pathTemplate: "/query/:key/:val", params: map[string]string{"key": "46", "val": "hello"}},
 		{method: MethodHead, path: "/query/unknown", valid: true, pathTemplate: "/query/unknown"},
 		{method: MethodHead, path: "/query/untold", valid: true, pathTemplate: "/query/untold"},
-		//{method: MethodGet, path: "/query", valid: false, pathTemplate: ""},
 
 		{method: MethodConnect, path: "/questions/1001", valid: true, pathTemplate: "/questions/:index", params: map[string]string{"index": "1001"}},
 		{method: MethodConnect, path: "/questions", valid: true, pathTemplate: "/questions"},
 
 		{method: MethodDelete, path: "/graphql", valid: true, pathTemplate: "/graphql"},
 		{method: MethodDelete, path: "/graph", valid: true, pathTemplate: "/graph"},
-		//{method: MethodGet, path: "/graphq", valid: false, pathTemplate: ""},
 		{method: MethodDelete, path: "/graphql/cmd", valid: true, pathTemplate: "/graphql/cmd", params: nil},
-		//{method: MethodGet, path: "/graphql/stream/tcp", valid: false, pathTemplate: "", params: nil},
 
 		{method: MethodDelete, path: "/file", valid: true, pathTemplate: "/file", params: nil},
 		{method: MethodDelete, path: "/file/remove", valid: true, pathTemplate: "/file/remove", params: nil},
-		//{method: MethodGet, path: "/gophers.html/fetch", valid: false, pathTemplate: "", params: nil},
 
-		//{method: MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
-		//{method: MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
-		//{method: MethodGet, path: "/hero-", valid: false, pathTemplate: "", params: nil},
+		{method: MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
+		{method: MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
 	}
 
 	requests := make([]*http.Request, len(tt))
@@ -1374,7 +1348,7 @@ func BenchmarkRouter_ServeHTTP_ParamRoutes_GETMethod(b *testing.B) {
 		"/query/:key/:val",
 		"/query/:key/:val/:cmd",
 		"/query/:key/:val/:cmd/single",
-		//"/query/:key/:val/:cmd/single/1",
+		"/query/:key/:val/:cmd/single/1",
 		"/questions/:index",
 		"/graphql/:cmd",
 		"/:file",
@@ -1400,7 +1374,7 @@ func BenchmarkRouter_ServeHTTP_ParamRoutes_GETMethod(b *testing.B) {
 		"/query/46/hello",
 		"/query/99/sup/update-ttl",
 		"/query/10/amazing/reset/single",
-		//"/query/10/amazing/reset/single/1",
+		"/query/10/amazing/reset/single/1",
 		"/questions/1001",
 		"/graphql/stream",
 		"/gophers.html",
