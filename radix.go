@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
+	"unicode"
 )
 
 type Handler = func(http.ResponseWriter, *http.Request, *Params)
@@ -64,8 +64,8 @@ func newRootNode() *node {
 	}
 }
 
-func (n *node) insert(path string, handler Handler) (paramsCount int) {
-	scanPath(path)
+func (n *node) insert(path string, handler Handler) (varsCount int) {
+	varsCount = scanPath(path)
 
 	if path == "" {
 		// Root node.
@@ -73,8 +73,6 @@ func (n *node) insert(path string, handler Handler) (paramsCount int) {
 		n.handler = handler
 		return
 	}
-
-	paramsCount = findParamsCount(path)
 
 	newNode := n.addNode(path)
 	newNode.template = path
@@ -394,62 +392,64 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 	return nil, params
 }
 
-func scanPath(path string) (params []string, wildcard string) {
-	if path[0] != '/' {
-		panic("missing leading slash")
+func scanPath(path string) (varsCount int) {
+	if path == "" || path[0] != '/' {
+		panic("path must have a leading slash")
 	}
-
-	var wcLabel, paramLabel strings.Builder
-	params = make([]string, 0)
 
 	inParams := false
 	inWC := false
 	for i, c := range []byte(path) {
-		if c == ':' && i != 0 && path[i-1] != '/' {
-			//panic("params cannot be defined in the middle of a segment")
+		if unicode.IsSpace(rune(c)) {
+			panic("path shouldn't contain any whitespace")
 		}
 
-		if c == '*' && i != 0 && path[i-1] != '/' {
-			//panic("wildcard cannot be defined in the middle of a segment")
+		if inWC {
+			switch c {
+			case '/', ':':
+				panic("another segment shouldn't follow a wildcard segment")
+			case '*':
+				panic("only one wildcard segment is allowed")
+			}
+		}
+
+		if inParams {
+			switch c {
+			case '/':
+				if path[i-1] == ':' {
+					panic("param must have a name")
+				}
+				inParams = false
+				continue
+			case ':':
+				panic("only one param segment is allowed within the same scope")
+			case '*':
+				panic("wildcard segment shouldn't follow the param segment within the same scope")
+			}
 		}
 
 		if c == '*' {
 			inWC = true
+			varsCount++
 			continue
 		}
 
-		if inWC && c == '/' {
-			panic("there cannot be a segment after wildcard")
-		}
-
-		if inWC && c == '*' {
-			panic("there can be only one wildcard")
-		}
-
-		if inWC {
-			wcLabel.WriteByte(c)
-		}
-
-		if inParams {
-			paramLabel.WriteByte(c)
-		}
-
-		if inParams && c == '/' {
-			params = append(params, paramLabel.String())
-			paramLabel.Reset()
-			inParams = false
+		if c == ':' {
+			inParams = true
+			varsCount++
+			continue
 		}
 	}
 
-	if inParams && paramLabel.Len() != 0 {
-		params = append(params, paramLabel.String())
+	if inParams && path[len(path)-1] == ':' {
+		panic("param must have a name")
 	}
 
-	if inWC && wcLabel.String() == "" {
-		panic("require a name for the wildcard")
+	if inWC && path[len(path)-1] == '*' {
+		panic("wildcard must have a name")
 	}
 
-	return params, wcLabel.String()
+	return
 }
 
 func findParamsCount(path string) (c int) {

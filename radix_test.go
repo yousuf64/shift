@@ -1,6 +1,7 @@
 package dune
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -622,4 +623,113 @@ func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTab
 			ps.reset()
 		}
 	}
+}
+
+func TestScanPath(t *testing.T) {
+	t.Parallel()
+	t.Run("Whitespace", func(t *testing.T) {
+		paths := []string{
+			" ",
+			"/ ",
+			"/\t",
+			"/\n",
+			"/\v",
+			"/\f",
+			"/\r",
+			"/hello ",
+			"/hello\t",
+			"/hello\n",
+			"/hello\v",
+			"/hello\f",
+			"/hello\r",
+			"+0085",
+			"U+00A0",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("Wildcard", func(t *testing.T) {
+		paths := []string{
+			// Without name.
+			"/*",
+			"/hello/*",
+
+			// Successive segments.
+			"/*action/hello",
+			"/*action/name",
+			"/*action_:name",
+
+			// Multiple wildcards.
+			"/*foo*bar",
+			"/hello/*foo*bar",
+			"/hello/*foo*bar*baz",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("Param", func(t *testing.T) {
+		paths := []string{
+			// Without name.
+			"/:",
+			"/hello/:",
+			"/hello/:/ccc",
+			"/hello/:/:/:/ccc",
+
+			// param-param / param-wildcard segments within the same scope.
+			"/:aaa:bbb",
+			"/:aaa:bbb/ccc",
+			"/foo/:bar_:baz",
+			"/foo/:bar_:baz/xyz",
+			"/foo/:bar_*abc",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("VarsCount", func(t *testing.T) {
+		paths := map[string]int{
+			"/:foo":                1,
+			"/*foo":                1,
+			"/:foo/:bar":           2,
+			"/:foo/*bar":           2,
+			"/:foo/:bar/:baz":      3,
+			"/:foo/:bar/*baz":      3,
+			"/:foo/:bar/:baz/:abc": 4,
+			"/:foo/:bar/:baz/*abc": 4,
+		}
+
+		for path, c := range paths {
+			vc := scanPath(path)
+			assert(t, c == vc, fmt.Sprintf("path %s vars count > expected: %d, got: %d", path, c, vc))
+		}
+	})
+}
+
+func panicHandler(f func()) (rec any) {
+	defer func() {
+		rec = recover()
+	}()
+
+	f()
+	return
 }
