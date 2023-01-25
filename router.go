@@ -288,7 +288,16 @@ func (d *Dune) RoutesScoped() (routes []Route) {
 	return
 }
 
-// Router
+// Base returns the base path of the group.
+//
+// For example,
+//
+//	d.Group("/v1/foo", func(d *dune.Dune) {
+//		d.Base() # outputs /v1/foo
+//	})
+func (d *Dune) Base() string {
+	return d.base
+}
 
 type Router struct {
 	muxes       [9]muxInterface         // Stores mux objects for default http methods.
