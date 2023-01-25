@@ -452,6 +452,137 @@ func scanPath(path string) (varsCount int) {
 	return
 }
 
+func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) (*node, *Params, string) {
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+
+	if path == "" {
+		return n, nil, ""
+	}
+
+	var buf reverseBuffer = newReverseBuffer128() // No heap allocation.
+	if lng := len(path) + 1; lng > 128 {          // Account an additional space for the leading slash.
+		buf = newSizedReverseBuffer(lng) // For long paths, allocate a sized buffer on heap.
+	}
+
+	fn, ps := n._caseInsensitiveSearch(path, nil, paramInjector, buf)
+	if fn != nil && fn.handler != nil {
+		buf.WriteString("/") // Write leading slash.
+	}
+	return fn, ps, buf.String()
+}
+
+func (n *node) _caseInsensitiveSearch(path string, params *Params, paramInjector func() *Params, buf reverseBuffer) (*node, *Params) {
+	var swappedChild bool
+
+	// Look for a child node whose first char equals searching path's first char and prefix length
+	// is less than or equal searching path's length.
+	child := n.findCandidateByCharAndSize(path[0], len(path))
+
+TraverseChild:
+	if child != nil {
+		// Find the longest common prefix between child's prefix and searching path.
+		// If child's prefix is fully matched, continue...
+		// Otherwise, fallback...
+		if longest := longestPrefixCaseInsensitive(child.prefix, path); longest == len(child.prefix) {
+
+			// Perfect match. And no further segments are left to cover in the searching path.
+			if longest == len(path) {
+				if child.handler != nil {
+					buf.WriteString(child.prefix)
+					return child, params
+				}
+
+				// Though there's a matching node, it doesn't have a handler.
+				// Try to elect matched node's wildcard node.
+				// No need to nil check wildcard node's handler since wildcard nodes would always have a handler.
+				if child.wildcard != nil {
+					if params == nil {
+						params = paramInjector()
+					}
+					params.set(child.wildcard.prefix[1:], path[longest:])
+					buf.WriteString(path[longest:])
+					return child.wildcard, params
+				}
+
+				return nil, params
+			} else {
+				// There are more segments to cover in the searching path.
+
+				// Traverse the child node recursively until a match is found.
+				var dfsChild *node
+				if dfsChild, params = child._caseInsensitiveSearch(path[len(child.prefix):], params, paramInjector, buf); dfsChild != nil && dfsChild.handler != nil {
+					// Found a matching node with a registered handler.
+					buf.WriteString(child.prefix)
+					return dfsChild, params
+				}
+			}
+		}
+	}
+
+	// Didn't find a matching node.
+
+	// We could try swapping if we haven't swapped already...
+	if !swappedChild {
+		if sc, swapped := swapCase(path[0]); swapped {
+			child = n.findCandidateByCharAndSize(sc, len(path))
+			swappedChild = true
+			goto TraverseChild
+		}
+	}
+
+	// Fallback to param node.
+	if n.param != nil {
+		r := routeScanner{path: path}
+
+		if params == nil {
+			params = paramInjector()
+		}
+
+		// Check if more segments are left to cover in the searching path.
+		if idx := r.indexOf('/'); idx == -1 {
+
+			// No more segments in the path.
+			if n.param.handler != nil {
+				params.set(n.param.prefix[1:], path)
+				buf.WriteString(path)
+				return n.param, params
+			}
+
+			// The param node might have children who have handlers but no need to explore them
+			// since the searching path has no more segments left to cover.
+			// Thus, fallback to the wildcard node.
+
+		} else {
+
+			// Traverse the param node until all the segments are exhausted.
+			if child, params = n.param._caseInsensitiveSearch(path[idx:], params, paramInjector, buf); child != nil && child.handler != nil {
+				params.set(n.param.prefix[1:], path[:idx])
+				buf.WriteString(path[:idx])
+				return child, params
+			}
+		}
+	}
+
+	// Fallback to wildcard node.
+	//
+	// This also facilitates to fall back to the nearest wildcard node in the recursion stack when no match is found.
+	//
+	// No need to nil check wildcard node's handler since wildcard nodes must have a handler.
+	if n.wildcard != nil {
+		if params == nil {
+			params = paramInjector()
+		}
+
+		params.set(n.wildcard.prefix[1:], path)
+		buf.WriteString(path)
+		return n.wildcard, params
+	}
+
+	return nil, params
+}
+
 func findParamsCount(path string) (c int) {
 	for _, b := range []byte(path) {
 		if b == ':' || b == '*' {
@@ -475,4 +606,38 @@ func longestPrefix(s1, s2 string) int {
 		i++
 	}
 	return i
+}
+
+func longestPrefixCaseInsensitive(s1, s2 string) int {
+	max := len(s1)
+	if len(s2) < max {
+		max = len(s2)
+	}
+
+	i := 0
+	for ; i < max; i++ {
+		if s1[i] != s2[i] {
+			if sc, swapped := swapCase(s2[i]); swapped && s1[i] == sc {
+				continue
+			}
+			return i
+		}
+	}
+	return i
+}
+
+func swapCase(r uint8) (uint8, bool) {
+	if r < 'A' || r > 'z' || r > 'Z' && r < 'a' {
+		return r, false
+	}
+
+	isLower := r >= 'a' && r <= 'z'
+
+	if isLower {
+		r -= 'a' - 'A'
+	} else {
+		r += 'a' - 'A'
+	}
+
+	return r, true
 }

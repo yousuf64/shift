@@ -598,6 +598,162 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 
 }
 
+func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
+	d := New(
+		SetHandleMethodNotAllowed(false),
+		OnTrailingSlashMatch(DoNothing),
+		OnFixedPathMatch(DoExecute),
+	)
+
+	paths := map[string]string{
+		"/users/find":                   MethodGet,
+		"/users/find/:name":             MethodGet,
+		"/users/:id/delete":             MethodGet,
+		"/users/:id/update":             MethodGet,
+		"/users/groups/:groupId/dump":   MethodGet,
+		"/users/groups/:groupId/export": MethodGet,
+		"/users/delete":                 MethodGet,
+		"/users/all/dump":               MethodGet,
+		"/users/all/export":             MethodGet,
+		"/users/any":                    MethodGet,
+
+		"/search":                  MethodPost,
+		"/search/go":               MethodPost,
+		"/search/go1.html":         MethodPost,
+		"/search/index.html":       MethodPost,
+		"/search/:q":               MethodPost,
+		"/search/:q/go":            MethodPost,
+		"/search/:q/go1.html":      MethodPost,
+		"/search/:q/:w/index.html": MethodPost,
+
+		"/src/:dest/invalid": MethodPut,
+		"/src/invalid":       MethodPut,
+		"/src1/:dest":        MethodPut,
+		"/src1":              MethodPut,
+
+		"/signal-r/:cmd/reflection": MethodPatch,
+		"/signal-r":                 MethodPatch,
+		"/signal-r/:cmd":            MethodPatch,
+
+		"/query/unknown/pages":         MethodHead,
+		"/query/:key/:val/:cmd/single": MethodHead,
+		"/query/:key":                  MethodHead,
+		"/query/:key/:val/:cmd":        MethodHead,
+		"/query/:key/:val":             MethodHead,
+		"/query/unknown":               MethodHead,
+		"/query/untold":                MethodHead,
+
+		"/questions/:index": MethodOptions,
+		"/questions":        MethodOptions,
+
+		"/graphql":     MethodDelete,
+		"/graph":       MethodDelete,
+		"/graphql/cmd": MethodDelete,
+
+		"/file":        MethodDelete,
+		"/file/remove": MethodDelete,
+
+		"/hero-:name": MethodGet,
+	}
+
+	rec := &recorder{}
+
+	for path, meth := range paths {
+		d.Map(Methods{meth}, path, rec.Handler(path))
+	}
+
+	tt := routerScenario{
+		{method: MethodGet, path: "/users/finD", valid: true, pathTemplate: "/users/find"},
+		{method: MethodGet, path: "/users/finD/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
+		{method: MethodGet, path: "/users/john/deletE", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
+		{method: MethodGet, path: "/users/911/updatE", valid: true, pathTemplate: "/users/:id/update", params: map[string]string{"id": "911"}},
+		{method: MethodGet, path: "/users/groupS/120/dumP", valid: true, pathTemplate: "/users/groups/:groupId/dump", params: map[string]string{"groupId": "120"}},
+		{method: MethodGet, path: "/users/groupS/230/exporT", valid: true, pathTemplate: "/users/groups/:groupId/export", params: map[string]string{"groupId": "230"}},
+		{method: MethodGet, path: "/users/deletE", valid: true, pathTemplate: "/users/delete"},
+		{method: MethodGet, path: "/users/alL/dumP", valid: true, pathTemplate: "/users/all/dump"},
+		{method: MethodGet, path: "/users/alL/exporT", valid: true, pathTemplate: "/users/all/export"},
+		{method: MethodGet, path: "/users/AnY", valid: true, pathTemplate: "/users/any"},
+
+		{method: MethodPost, path: "/seArcH", valid: true, pathTemplate: "/search"},
+		{method: MethodPost, path: "/sEarCh/gO", valid: true, pathTemplate: "/search/go"},
+		{method: MethodPost, path: "/SeArcH/Go1.hTMl", valid: true, pathTemplate: "/search/go1.html"},
+		{method: MethodPost, path: "/sEaRch/inDEx.hTMl", valid: true, pathTemplate: "/search/index.html"},
+		{method: MethodPost, path: "/SEARCH/contact.html", valid: true, pathTemplate: "/search/:q", params: map[string]string{"q": "contact.html"}},
+		{method: MethodPost, path: "/SeArCh/ducks", valid: true, pathTemplate: "/search/:q", params: map[string]string{"q": "ducks"}},
+		{method: MethodPost, path: "/sEArCH/gophers/Go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
+		{method: MethodPost, path: "/sEArCH/nature/go1.HTML", valid: true, pathTemplate: "/search/:q/go1.html", params: map[string]string{"q": "nature"}},
+		{method: MethodPost, path: "/search/generics/types/index.html", valid: true, pathTemplate: "/search/:q/:w/index.html", params: map[string]string{"q": "generics", "w": "types"}},
+
+		{method: MethodPut, path: "/Src/paris/InValiD", valid: true, pathTemplate: "/src/:dest/invalid", params: map[string]string{"dest": "paris"}},
+		{method: MethodPut, path: "/SrC/InvaliD", valid: true, pathTemplate: "/src/invalid"},
+		{method: MethodPut, path: "/SrC1/oslo", valid: true, pathTemplate: "/src1/:dest", params: map[string]string{"dest": "oslo"}},
+		{method: MethodPut, path: "/SrC1", valid: true, pathTemplate: "/src1"},
+
+		{method: MethodPatch, path: "/Signal-R/protos/reflection", valid: true, pathTemplate: "/signal-r/:cmd/reflection", params: map[string]string{"cmd": "protos"}},
+		{method: MethodPatch, path: "/sIgNaL-r", valid: true, pathTemplate: "/signal-r"},
+		{method: MethodPatch, path: "/SIGNAL-R/push", valid: true, pathTemplate: "/signal-r/:cmd", params: map[string]string{"cmd": "push"}},
+		{method: MethodPatch, path: "/sIGNal-r/connect", valid: true, pathTemplate: "/signal-r/:cmd", params: map[string]string{"cmd": "connect"}},
+
+		{method: MethodHead, path: "/quERy/unKNown/paGEs", valid: true, pathTemplate: "/query/unknown/pages"},
+		{method: MethodHead, path: "/QUery/10/amazing/reset/SiNglE", valid: true, pathTemplate: "/query/:key/:val/:cmd/single", params: map[string]string{"key": "10", "val": "amazing", "cmd": "reset"}},
+		{method: MethodHead, path: "/QueRy/911", valid: true, pathTemplate: "/query/:key", params: map[string]string{"key": "911"}},
+		{method: MethodHead, path: "/qUERy/99/sup/update-ttl", valid: true, pathTemplate: "/query/:key/:val/:cmd", params: map[string]string{"key": "99", "val": "sup", "cmd": "update-ttl"}},
+		{method: MethodHead, path: "/QueRy/46/hello", valid: true, pathTemplate: "/query/:key/:val", params: map[string]string{"key": "46", "val": "hello"}},
+		{method: MethodHead, path: "/qUeRy/uNkNoWn", valid: true, pathTemplate: "/query/unknown"},
+		{method: MethodHead, path: "/QuerY/UntOld", valid: true, pathTemplate: "/query/untold"},
+
+		{method: MethodOptions, path: "/qUestions/1001", valid: true, pathTemplate: "/questions/:index", params: map[string]string{"index": "1001"}},
+		{method: MethodOptions, path: "/quEsTioNs", valid: true, pathTemplate: "/questions"},
+
+		{method: MethodDelete, path: "/GRAPHQL", valid: true, pathTemplate: "/graphql"},
+		{method: MethodDelete, path: "/gRapH", valid: true, pathTemplate: "/graph"},
+		{method: MethodDelete, path: "/grAphQl/cMd", valid: true, pathTemplate: "/graphql/cmd", params: nil},
+
+		{method: MethodDelete, path: "/File", valid: true, pathTemplate: "/file", params: nil},
+		{method: MethodDelete, path: "/fIle/rEmOve", valid: true, pathTemplate: "/file/remove", params: nil},
+
+		{method: MethodGet, path: "/heRO-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
+		{method: MethodGet, path: "/HEro-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
+	}
+
+	testRouter_ServeHTTP(t, Compile(d), rec, tt)
+}
+
+func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
+	d := New(
+		SetHandleMethodNotAllowed(false),
+		OnTrailingSlashMatch(DoNothing),
+		OnFixedPathMatch(DoExecute),
+	)
+
+	f := func(path string) Handler {
+		return func(w http.ResponseWriter, r *http.Request, ps *Params) {
+			u := r.URL.String()
+			assert(t, path == u, fmt.Sprintf("request path expected: %s, got: %s", path, u))
+		}
+	}
+
+	d.Get("/foo", f("/foo"))
+	d.Get("/abc/xyz", f("/abc/xyz"))
+	d.Get("/go/go/go", f("/go/go/go"))
+	d.Get("/bar/ccc/ddd/zzz", f("/bar/ccc/ddd/zzz"))
+
+	r := Compile(d)
+
+	r1, _ := http.NewRequest(MethodGet, "/FoO", nil)
+	r2, _ := http.NewRequest(MethodGet, "/aBC/xYz", nil)
+	r3, _ := http.NewRequest(MethodGet, "/gO/GO/go", nil)
+	r4, _ := http.NewRequest(MethodGet, "/BaR/CcC/ddD/zzZ", nil)
+
+	requests := [...]*http.Request{r1, r2, r3, r4}
+	rw := httptest.NewRecorder()
+
+	for _, request := range requests {
+		r.ServeHTTP(rw, request)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("http status expected: %d, got: %d", http.StatusOK, rw.Code))
+	}
+}
+
 func testRouter_ServeHTTP(t *testing.T, r *Router, rec *recorder, table routerScenario) {
 	for _, tx := range table {
 		rw := &mockRW{}
@@ -1194,6 +1350,143 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, request := range requests {
 			r.ServeHTTP(nil, request)
+		}
+	}
+}
+
+func BenchmarkRouter_ServeHTTP_CaseInsensitive(b *testing.B) {
+	d := New(
+		SetHandleMethodNotAllowed(false),
+		OnTrailingSlashMatch(DoNothing),
+		OnFixedPathMatch(DoRedirect),
+		WithNotFoundHandler(func(w http.ResponseWriter, r *http.Request, ps *Params) {
+
+		}))
+
+	paths := map[string]string{
+		"/users/find":                   MethodGet,
+		"/users/find/:name":             MethodGet,
+		"/users/:id/delete":             MethodGet,
+		"/users/:id/update":             MethodGet,
+		"/users/groups/:groupId/dump":   MethodGet,
+		"/users/groups/:groupId/export": MethodGet,
+		"/users/delete":                 MethodGet,
+		"/users/all/dump":               MethodGet,
+		"/users/all/export":             MethodGet,
+		"/users/any":                    MethodGet,
+
+		"/search":                  MethodPost,
+		"/search/go":               MethodPost,
+		"/search/go1.html":         MethodPost,
+		"/search/index.html":       MethodPost,
+		"/search/:q":               MethodPost,
+		"/search/:q/go":            MethodPost,
+		"/search/:q/go1.html":      MethodPost,
+		"/search/:q/:w/index.html": MethodPost,
+
+		"/src/:dest/invalid": MethodPut,
+		"/src/invalid":       MethodPut,
+		"/src1/:dest":        MethodPut,
+		"/src1":              MethodPut,
+
+		"/signal-r/:cmd/reflection": MethodPatch,
+		"/signal-r":                 MethodPatch,
+		"/signal-r/:cmd":            MethodPatch,
+
+		"/query/unknown/pages":         MethodHead,
+		"/query/:key/:val/:cmd/single": MethodHead,
+		"/query/:key":                  MethodHead,
+		"/query/:key/:val/:cmd":        MethodHead,
+		"/query/:key/:val":             MethodHead,
+		"/query/unknown":               MethodHead,
+		"/query/untold":                MethodHead,
+
+		"/questions/:index": MethodOptions,
+		"/questions":        MethodOptions,
+
+		"/graphql":     MethodDelete,
+		"/graph":       MethodDelete,
+		"/graphql/cmd": MethodDelete,
+
+		"/file":        MethodDelete,
+		"/file/remove": MethodDelete,
+
+		"/hero-:name": MethodGet,
+	}
+
+	for path, meth := range paths {
+		d.Map(Methods{meth}, path, fakeHandler())
+	}
+
+	tt := routerScenario{
+		{method: MethodGet, path: "/users/finD", valid: true, pathTemplate: "/users/find"},
+		{method: MethodGet, path: "/users/finD/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
+		{method: MethodGet, path: "/users/john/deletE", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
+		{method: MethodGet, path: "/users/911/updatE", valid: true, pathTemplate: "/users/:id/update", params: map[string]string{"id": "911"}},
+		{method: MethodGet, path: "/users/groupS/120/dumP", valid: true, pathTemplate: "/users/groups/:groupId/dump", params: map[string]string{"groupId": "120"}},
+		{method: MethodGet, path: "/users/groupS/230/exporT", valid: true, pathTemplate: "/users/groups/:groupId/export", params: map[string]string{"groupId": "230"}},
+		{method: MethodGet, path: "/users/deletE", valid: true, pathTemplate: "/users/delete"},
+		{method: MethodGet, path: "/users/alL/dumP", valid: true, pathTemplate: "/users/all/dump"},
+		{method: MethodGet, path: "/users/alL/exporT", valid: true, pathTemplate: "/users/all/export"},
+		{method: MethodGet, path: "/users/AnY", valid: true, pathTemplate: "/users/any"},
+
+		{method: MethodPost, path: "/seArcH", valid: true, pathTemplate: "/search"},
+		{method: MethodPost, path: "/sEarCh/gO", valid: true, pathTemplate: "/search/go"},
+		{method: MethodPost, path: "/SeArcH/Go1.hTMl", valid: true, pathTemplate: "/search/go1.html"},
+		{method: MethodPost, path: "/sEaRch/inDEx.hTMl", valid: true, pathTemplate: "/search/index.html"},
+		{method: MethodPost, path: "/SEARCH/contact.html", valid: true, pathTemplate: "/search/:q"},
+		{method: MethodPost, path: "/SeArCh/ducks", valid: true, pathTemplate: "/search/:q", params: map[string]string{"q": "ducks"}},
+		{method: MethodPost, path: "/sEArCH/gophers/Go", valid: true, pathTemplate: "/search/:q/go", params: map[string]string{"q": "gophers"}},
+		{method: MethodPost, path: "/sEArCH/nature/go1.HTML", valid: true, pathTemplate: "/search/:q/go1.html", params: map[string]string{"q": "nature"}},
+		{method: MethodPost, path: "/search/generics/types/index.html", valid: true, pathTemplate: "/search/:q/:w/index.html", params: map[string]string{"q": "generics", "w": "types"}},
+
+		{method: MethodPut, path: "/Src/paris/InValiD", valid: true, pathTemplate: "/src/:dest/invalid", params: map[string]string{"dest": "paris"}},
+		{method: MethodPut, path: "/SrC/InvaliD", valid: true, pathTemplate: "/src/invalid"},
+		{method: MethodPut, path: "/SrC1/oslo", valid: true, pathTemplate: "/src1/:dest", params: map[string]string{"dest": "oslo"}},
+		{method: MethodPut, path: "/SrC1", valid: true, pathTemplate: "/src1"},
+
+		{method: MethodPatch, path: "/Signal-R/protos/reflection", valid: true, pathTemplate: "/signal-r/:cmd/reflection", params: map[string]string{"cmd": "protos"}},
+		{method: MethodPatch, path: "/sIgNaL-r", valid: true, pathTemplate: "/signal-r"},
+		{method: MethodPatch, path: "/SIGNAL-R/push", valid: true, pathTemplate: "/signal-r/:cmd", params: map[string]string{"cmd": "push"}},
+		{method: MethodPatch, path: "/sIGNal-r/connect", valid: true, pathTemplate: "/signal-r/:cmd", params: map[string]string{"cmd": "connect"}},
+
+		{method: MethodHead, path: "/quERy/unKNown/paGEs", valid: true, pathTemplate: "/query/unknown/pages"},
+		{method: MethodHead, path: "/QUery/10/amazing/reset/SiNglE", valid: true, pathTemplate: "/query/:key/:val/:cmd/single", params: map[string]string{"key": "10", "val": "amazing", "cmd": "reset"}},
+		{method: MethodHead, path: "/QueRy/911", valid: true, pathTemplate: "/query/:key", params: map[string]string{"key": "911"}},
+		{method: MethodHead, path: "/qUERy/99/sup/update-ttl", valid: true, pathTemplate: "/query/:key/:val/:cmd", params: map[string]string{"key": "99", "val": "sup", "cmd": "update-ttl"}},
+		{method: MethodHead, path: "/QueRy/46/hello", valid: true, pathTemplate: "/query/:key/:val", params: map[string]string{"key": "46", "val": "hello"}},
+		{method: MethodHead, path: "/qUeRy/uNkNoWn", valid: true, pathTemplate: "/query/unknown"},
+		{method: MethodHead, path: "/QuerY/UntOld", valid: true, pathTemplate: "/query/untold"},
+
+		{method: MethodOptions, path: "/qUestions/1001", valid: true, pathTemplate: "/questions/:index", params: map[string]string{"index": "1001"}},
+		{method: MethodOptions, path: "/quEsTioNs", valid: true, pathTemplate: "/questions"},
+
+		{method: MethodDelete, path: "/GRAPHQL", valid: true, pathTemplate: "/graphql"},
+		{method: MethodDelete, path: "/gRapH", valid: true, pathTemplate: "/graph"},
+		{method: MethodDelete, path: "/grAphQl/cMd", valid: true, pathTemplate: "/graphql/cmd", params: nil},
+
+		{method: MethodDelete, path: "/File", valid: true, pathTemplate: "/file", params: nil},
+		{method: MethodDelete, path: "/fIle/rEmOve", valid: true, pathTemplate: "/file/remove", params: nil},
+
+		{method: MethodGet, path: "/heRO-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
+		{method: MethodGet, path: "/HEro-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
+	}
+
+	requests := make([]*http.Request, len(tt))
+
+	for i, tx := range tt {
+		requests[i], _ = http.NewRequest(tx.method, tx.path, nil)
+	}
+
+	r := Compile(d)
+	rw := httptest.NewRecorder()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, request := range requests {
+			r.ServeHTTP(rw, request)
 		}
 	}
 }

@@ -465,27 +465,21 @@ func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Clean the path and retry...
-	if clean := cleanPath(path); clean != path {
-		handler, ps := mux.find(clean)
-		if handler == nil {
-			if len(clean) > 0 && clean[len(clean)-1] == '/' {
-				clean = clean[:len(clean)-1]
-			} else {
-				clean = clean + "/"
-			}
-
-			handler, ps = mux.find(clean)
-		}
-
+	// Clean the path and do a case-insensitive search...
+	if rtr.config.OnFixedPathMatch != DoNothing {
+		clean := cleanPath(path)
+		handler, ps, matchedPath := mux.findCaseInsensitive(clean, rtr.config.OnFixedPathMatch == DoExecute)
 		if handler != nil {
 			switch rtr.config.OnFixedPathMatch {
 			case DoRedirect:
-				r.URL.Path = clean
+				r.URL.Path = matchedPath
 				http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
 				return
 			case DoExecute:
-				r.URL.Path = clean
+				if ps == nil {
+					ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
+				}
+				r.URL.Path = matchedPath
 				handler(w, r, ps)
 				return
 			}
@@ -552,6 +546,7 @@ func (rtr *Router) allowedHeader(path string, skipMethod string) string {
 type muxInterface interface {
 	add(path string, isStatic bool, handler Handler)
 	find(path string) (Handler, *Params)
+	findCaseInsensitive(path string, withParams bool) (h Handler, ps *Params, matchedPath string)
 }
 
 type radixMux struct {
@@ -613,15 +608,35 @@ func (mux *radixMux) find(path string) (Handler, *Params) {
 	return nil, nil
 }
 
+func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (Handler, *Params, string) {
+	n, ps, matchedPath := mux.tree.caseInsensitiveSearch(path, func() *Params {
+		ps := mux.paramsPool.Get().(*Params)
+		ps.reset()
+		return ps
+	})
+
+	if n != nil && n.handler != nil {
+		// When params obj is not required, just release it to the pool and return a nil.
+		if !withParams && ps != nil {
+			mux.paramsPool.Put(ps)
+			ps = nil
+		}
+
+		return n.handler, ps, matchedPath
+	}
+
+	return nil, nil, ""
+}
+
 type staticMux struct {
 	routes   map[string]Handler
-	sizePlot []bool
+	sizePlot [][]string // Size -> Paths. eg:. 4 (Size) -> /foo, /bar (Paths)
 }
 
 func newStaticMux() *staticMux {
 	return &staticMux{
 		routes:   map[string]Handler{},
-		sizePlot: make([]bool, 5),
+		sizePlot: make([][]string, 5),
 	}
 }
 
@@ -632,11 +647,11 @@ func (mux *staticMux) add(path string, isStatic bool, handler Handler) {
 
 	if len(path) >= len(mux.sizePlot) {
 		// Grow slice.
-		mux.sizePlot = append(mux.sizePlot, make([]bool, len(path)-len(mux.sizePlot)+1)...)
+		mux.sizePlot = append(mux.sizePlot, make([][]string, len(path)-len(mux.sizePlot)+1)...)
 	}
 
 	mux.routes[path] = handler
-	mux.sizePlot[len(path)] = true
+	mux.sizePlot[len(path)] = append(mux.sizePlot[len(path)], path)
 }
 
 func (mux *staticMux) find(path string) (Handler, *Params) {
@@ -644,11 +659,31 @@ func (mux *staticMux) find(path string) (Handler, *Params) {
 		return nil, nil
 	}
 
-	if !mux.sizePlot[len(path)] {
+	if len(mux.sizePlot[len(path)]) == 0 {
+		// Found no paths with the size.
 		return nil, nil
 	}
 
+	// Lookup the routes map.
 	return mux.routes[path], nil
+}
+
+func (mux *staticMux) findCaseInsensitive(path string, _ bool) (Handler, *Params, string) {
+	if len(path) >= len(mux.sizePlot) {
+		return nil, nil, ""
+	}
+
+	// Retrieve all the paths with the path's length.
+	if keys := mux.sizePlot[len(path)]; len(keys) > 0 {
+		for _, key := range keys {
+			// Find the matching path.
+			if lng := longestPrefixCaseInsensitive(key, path); lng == len(path) {
+				return mux.routes[key], nil, key
+			}
+		}
+	}
+
+	return nil, nil, ""
 }
 
 type hybridMux struct {
@@ -674,6 +709,14 @@ func (mux *hybridMux) find(path string) (Handler, *Params) {
 	}
 
 	return mux.radix.find(path)
+}
+
+func (mux *hybridMux) findCaseInsensitive(path string, withParams bool) (Handler, *Params, string) {
+	if handler, ps, matchedPath := mux.static.findCaseInsensitive(path, withParams); handler != nil {
+		return handler, ps, matchedPath
+	}
+
+	return mux.radix.findCaseInsensitive(path, withParams)
 }
 
 func isStatic(path string) bool {
