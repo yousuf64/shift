@@ -258,6 +258,9 @@ func (n *node) search(path string, paramInjector func() *Params) (*node, *Params
 	return fn, ps
 }
 
+// _search is a recursive function that traverses the radix tree and find a matching node.
+// When a match is found, returns the node. For Params, it returns a non-nil value only when a param node is matched.
+// Returns (nil, nil) when no match is found.
 func (n *node) _search(path string, params *Params, paramInjector func() *Params) (*node, *Params) {
 
 	// Look for a child node whose first char equals searching path's first char and prefix length
@@ -348,15 +351,15 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 	if n.param != nil {
 		r := routeScanner{path: path}
 
-		if params == nil {
-			params = paramInjector()
-		}
-
 		// Check if more segments are left to cover in the searching path.
 		if idx := r.indexOf('/'); idx == -1 {
 
 			// No more segments in the path.
 			if n.param.handler != nil {
+				if params == nil {
+					params = paramInjector()
+				}
+
 				params.set(n.param.prefix[1:], path)
 				return n.param, params
 			}
@@ -368,7 +371,12 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 		} else {
 
 			// Traverse the param node until all the segments are exhausted.
-			if child, params := n.param._search(path[idx:], params, paramInjector); child != nil && child.handler != nil {
+			var child *node
+			if child, params = n.param._search(path[idx:], params, paramInjector); child != nil && child.handler != nil {
+				if params == nil {
+					params = paramInjector()
+				}
+
 				params.set(n.param.prefix[1:], path[:idx])
 				return child, params
 			}

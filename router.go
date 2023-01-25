@@ -602,9 +602,6 @@ func (mux *radixMux) find(path string) (Handler, *Params) {
 		return n.handler, ps
 	}
 
-	if ps != nil {
-		mux.paramsPool.Put(ps)
-	}
 	return nil, nil
 }
 
