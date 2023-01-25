@@ -253,7 +253,24 @@ type Route struct {
 	Path   string
 }
 
+// Routes returns all the registered routes.
+// To retrieve only the routes registered within the current scope, use RoutesScoped instead.
 func (d *Dune) Routes() (routes []Route) {
+	routes = make([]Route, 0, len(*d.logs))
+
+	for _, log := range *d.logs {
+		routes = append(routes, Route{
+			Method: log.method,
+			Path:   log.path,
+		})
+	}
+
+	return
+}
+
+// RoutesScoped returns the routes registered within the current scope.
+// To retrieve all the routes, use Routes instead.
+func (d *Dune) RoutesScoped() (routes []Route) {
 	routes = make([]Route, 0, len(*d.logs))
 	all := len(d.base) == 0
 
