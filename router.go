@@ -570,12 +570,12 @@ func (mux *radixMux) add(path string, isStatic bool, handler Handler) {
 	}
 
 	// Wrap handler to put Params obj back to the pool after handler execution.
-	pc := mux.tree.insert(path, releaseParamsHandler(mux.paramsPool, handler))
+	vc := mux.tree.insert(path, releaseParamsHandler(mux.paramsPool, handler))
 
-	if mux.paramsPool.New == nil || pc > mux.maxParams {
-		mux.maxParams = pc
+	if mux.paramsPool.New == nil || vc > mux.maxParams {
+		mux.maxParams = vc
 		mux.paramsPool.New = func() any {
-			return newParams(pc)
+			return newParams(vc)
 		}
 	}
 }

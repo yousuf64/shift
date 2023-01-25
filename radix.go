@@ -599,11 +599,10 @@ func longestPrefix(s1, s2 string) int {
 	}
 
 	i := 0
-	for i < max {
+	for ; i < max; i++ {
 		if s1[i] != s2[i] {
 			return i
 		}
-		i++
 	}
 	return i
 }
