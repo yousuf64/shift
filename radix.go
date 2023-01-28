@@ -254,107 +254,68 @@ func (n *node) search(path string, paramInjector func() *Params) (*node, *Params
 		return n, nil
 	}
 
-	fn, ps := n._search(path, nil, paramInjector)
-	return fn, ps
+	return n.searchRecursion(path, nil, paramInjector)
 }
 
-// _search is a recursive function that traverses the radix tree and find a matching node.
-// When a match is found, returns the node. For Params, it returns a non-nil value only when a param node is matched.
-// Returns (nil, nil) when no match is found.
-func (n *node) _search(path string, params *Params, paramInjector func() *Params) (*node, *Params) {
+// searchRecursion recursively traverses the radix tree looking for a matching node.
+// Returns the matched node if found.
+// Returns Params only when matched node is a param node. Returns nil otherwise.
+func (n *node) searchRecursion(path string, params *Params, paramInjector func() *Params) (*node, *Params) {
+	// Search a matching node inside node's children.
+	// Char could be indexed?
+	if c := path[0]; n.index.minChar <= c && c <= n.index.maxChar {
+		// Yes, char could be indexed...
 
-	// Look for a child node whose first char equals searching path's first char and prefix length
-	// is less than or equal searching path's length.
-	if child := n.findCandidateByCharAndSize(path[0], len(path)); child != nil {
+		// Is char really indexed?
+		if idx := n.index.indices[c-n.index.minChar]; idx != 0 {
+			// Char is indexed!!!
 
-		// Find the longest common prefix between child's prefix and searching path.
-		// If child's prefix is fully matched, continue...
-		// Otherwise, fallback...
-		if longest := longestPrefix(child.prefix, path); longest == len(child.prefix) {
+			if child := n.children[idx-1]; child != nil {
+				if path == child.prefix {
+					// Perfect match.
+					// path: /foobar
+					// pref: /foobar
 
-			// Perfect match. And no further segments are left to cover in the searching path.
-			if longest == len(path) {
-				if child.handler != nil {
-					return child, params
-				}
-
-				// Though there's a matching node, it doesn't have a handler.
-				// Try to elect matched node's wildcard node.
-				// No need to nil check wildcard node's handler since wildcard nodes would always have a handler.
-				if child.wildcard != nil {
-					if params == nil {
-						params = paramInjector()
+					if child.handler != nil {
+						return child, params
 					}
-					params.set(child.wildcard.prefix[1:], path[longest:])
-					return child.wildcard, params
+
+					// But a handler is not registered :(
+					//
+					// So, lets fallback to wildcard node...
+					// !! No need to perform nil check for handler here since a wildcard node must always have a handler.
+					if child.wildcard != nil {
+						if params == nil {
+							params = paramInjector()
+						}
+						params.set(child.wildcard.prefix[1:], path[len(child.prefix):])
+						return child.wildcard, params
+					}
+
+					// No match :/
+					return nil, params
+				} else if strings.HasPrefix(path, child.prefix) {
+					// path: /foobar
+					// pref: /foo
+
+					// Explore child...
+					var innerChild *node
+					innerChild, params = child.searchRecursion(path[len(child.prefix):], params, paramInjector)
+					if innerChild != nil && innerChild.handler != nil {
+						return innerChild, params
+					}
 				}
-
-				return nil, params
-			} else {
-				// There are more segments to cover in the searching path.
-
-				// Traverse the child node recursively until a match is found.
-				var dfsChild *node
-				if dfsChild, params = child._search(path[len(child.prefix):], params, paramInjector); dfsChild != nil && dfsChild.handler != nil {
-					// Found a matching node with a registered handler.
-					return dfsChild, params
-				}
-
-				// Didn't find a matching node by traversing the child node.
-
-				// Hence, traverse child's param node.
-				// TODO: This may not be necessary.
-				//
-				// eg:
-				// node 1: /search/go		// This might be the right match, but NO!
-				// node 2: /search/:var		// So let's fallback to the param node
-				//
-				// search: /search/gone
-
-				//if child.param != nil {
-				//	remPath := path[longest:]
-				//
-				//	r := routeScanner{path: remPath}
-				//
-				//	if params == nil {
-				//		params = paramInjector()
-				//	}
-				//
-				//	if idx := r.indexOf('/'); idx == -1 {
-				//		// No more segments in the path.
-				//		if child.param.handler != nil {
-				//			params.set(child.param.prefix[1:], path)
-				//			return child.param, params
-				//		}
-				//
-				//		// The param node might have children who have handlers but no need to explore them since the searching path has no more segments.
-				//		// Due to the matched param node having no handler, fallback to the wildcard node.
-				//		goto Param
-				//	} else {
-				//		// Traverse the param node until all the segments are exhausted.
-				//		params.set(child.param.prefix[1:], remPath[:idx])
-				//		if child, params := child.param._search(remPath[idx:], params, paramInjector); child != nil && child.handler != nil {
-				//			return child, params
-				//		}
-				//	}
-				//
-				//	goto Param
-				//}
 			}
 		}
 	}
 
-	// Didn't find a matching node.
-
-	// Fallback to param node.
-
+	// Couldn't find a matching node within children nodes.
+	// So lets fallback to param node.
 	if n.param != nil {
-		r := routeScanner{path: path}
+		// Check if more sections are left to match in the path.
 
-		// Check if more segments are left to cover in the searching path.
-		if idx := r.indexOf('/'); idx == -1 {
-
-			// No more segments in the path.
+		if idx := strings.IndexByte(path, '/'); idx == -1 {
+			// No more sections to match.
 			if n.param.handler != nil {
 				if params == nil {
 					params = paramInjector()
@@ -363,31 +324,24 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 				params.set(n.param.prefix[1:], path)
 				return n.param, params
 			}
-
-			// The param node might have children who have handlers but no need to explore them
-			// since the searching path has no more segments left to cover.
-			// Thus, fallback to the wildcard node.
-
 		} else {
-
-			// Traverse the param node until all the segments are exhausted.
-			var child *node
-			if child, params = n.param._search(path[idx:], params, paramInjector); child != nil && child.handler != nil {
+			// Traverse the param node until all the path sections are matched.
+			var innerChild *node
+			innerChild, params = n.param.searchRecursion(path[idx:], params, paramInjector)
+			if innerChild != nil && innerChild.handler != nil {
 				if params == nil {
 					params = paramInjector()
 				}
 
 				params.set(n.param.prefix[1:], path[:idx])
-				return child, params
+				return innerChild, params
 			}
 		}
 	}
 
-	// Fallback to wildcard node.
-	//
-	// This also facilitates to fall back to the nearest wildcard node in the recursion stack when no match is found.
-	//
-	// No need to nil check wildcard node's handler since wildcard nodes must have a handler.
+	// No luck with param node :/
+	// Lets fallback to wildcard node.
+	// !! No need to perform nil check for handler here since a wildcard node must always have a handler.
 	if n.wildcard != nil {
 		if params == nil {
 			params = paramInjector()
@@ -397,6 +351,7 @@ func (n *node) _search(path string, params *Params, paramInjector func() *Params
 		return n.wildcard, params
 	}
 
+	// No match :(((
 	return nil, params
 }
 
