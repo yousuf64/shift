@@ -50,7 +50,7 @@ func TestStatic(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1, false))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -121,7 +121,7 @@ func TestDynamicRoutes(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1, false))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -197,7 +197,7 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 
 	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 		pc := findParamsCount(path)
 		if pc > maxParams {
@@ -255,7 +255,7 @@ func TestWildcard(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1, false))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -302,7 +302,7 @@ func TestWildcardParams(t *testing.T) {
 
 	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 		pc := findParamsCount(path)
 		if pc > maxParams {
@@ -345,7 +345,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HandlerFunc(fakeHandler1))
+			tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -371,7 +371,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HandlerFunc(fakeHandler1))
+			tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -396,7 +396,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HandlerFunc(fakeHandler1))
+			tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -421,7 +421,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HandlerFunc(fakeHandler1))
+			tree.insert(path, HandlerAdapter(fakeHandler1, false))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -460,7 +460,7 @@ func BenchmarkSimple(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HandlerFunc(fakeHandler1))
+		tree.insert(route, HandlerAdapter(fakeHandler1, false))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -528,7 +528,7 @@ func BenchmarkSimple2(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HandlerFunc(fakeHandler1))
+		tree.insert(route, HandlerAdapter(fakeHandler1, false))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc

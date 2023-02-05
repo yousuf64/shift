@@ -2,12 +2,10 @@ package dune
 
 import (
 	"fmt"
-	"net/http"
 	"sort"
+	"strings"
 	"unicode"
 )
-
-type Handler = func(http.ResponseWriter, *http.Request, *Params)
 
 type node struct {
 	prefix   string
@@ -15,7 +13,7 @@ type node struct {
 	children []*node
 	param    *node
 	wildcard *node
-	handler  Handler
+	handler  HandlerFunc
 	index    struct {
 		minChar uint8
 		maxChar uint8
@@ -64,7 +62,7 @@ func newRootNode() *node {
 	}
 }
 
-func (n *node) insert(path string, handler Handler) (varsCount int) {
+func (n *node) insert(path string, handler HandlerFunc) (varsCount int) {
 	varsCount = scanPath(path)
 
 	if path == "" {
@@ -222,6 +220,7 @@ func (n *node) reindex() {
 		return
 	}
 
+	// Sort children by prefix's first char.
 	sort.Slice(n.children, func(i, j int) bool {
 		return n.children[i].prefix[0] < n.children[j].prefix[0]
 	})
@@ -436,6 +435,7 @@ func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) 
 	return fn, ps, buf.String()
 }
 
+// TODO: optimize search...
 func (n *node) _caseInsensitiveSearch(path string, params *Params, paramInjector func() *Params, buf reverseBuffer) (*node, *Params) {
 	var swappedChild bool
 
