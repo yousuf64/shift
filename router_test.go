@@ -186,6 +186,48 @@ func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
 	testRouter_ServeHTTP(t, r.Serve(), rec, tt)
 }
 
+func TestRouter_ServeHTTP_DifferentParamNames(t *testing.T) {
+	r := newTestDune()
+
+	f := func(kvs map[string]string) HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request, route Route) error {
+			for k, v := range kvs {
+				val := route.Params.Get(k)
+				assert(t, v == val, fmt.Sprintf("%s for param %s > expected: %s, got: %s", r.URL.String(), k, v, val))
+			}
+			return nil
+		}
+	}
+
+	r1, _ := http.NewRequest(http.MethodGet, "/foo/911", nil)
+	r.GET("/foo/:id", f(map[string]string{"id": "911"}))
+
+	r2, _ := http.NewRequest(http.MethodGet, "/foo/bar/abc", nil)
+	r.GET("/foo/:name/abc", f(map[string]string{"name": "bar"}))
+
+	r3, _ := http.NewRequest(http.MethodGet, "/xyzooo", nil)
+	r.GET("/xyz:param", f(map[string]string{"param": "ooo"}))
+
+	r4, _ := http.NewRequest(http.MethodGet, "/xyzgo/aaa", nil)
+	r.GET("/xyz:lang/aaa", f(map[string]string{"lang": "go"}))
+
+	r5, _ := http.NewRequest(http.MethodGet, "/www/dune/jpeg", nil)
+	r.GET("/www/:filename/:extension", f(map[string]string{"filename": "dune", "extension": "jpeg"}))
+
+	r6, _ := http.NewRequest(http.MethodGet, "/www/meme/gif/upload", nil)
+	r.GET("/www/:file/:ext/upload", f(map[string]string{"file": "meme", "ext": "gif"}))
+
+	svr := r.Serve()
+
+	requests := [...]*http.Request{r1, r2, r3, r4, r5, r6}
+	rw := httptest.NewRecorder()
+
+	for _, req := range requests {
+		svr.ServeHTTP(rw, req)
+		assert(t, rw.Code == http.StatusOK, fmt.Sprintf("%p http status > expected: %d, got: %d", req.URL, http.StatusOK, rw.Code))
+	}
+}
+
 func TestRouter_ServeHTTP_WildcardRoutes(t *testing.T) {
 	r := newTestDune()
 
@@ -784,7 +826,7 @@ func testRouter_ServeHTTP_2(t *testing.T, r *Server, rec *recorder, table router
 
 		gotParamsCount := 0
 		if rec.params != nil {
-			gotParamsCount = len(rec.params.params)
+			gotParamsCount = len(rec.params.values)
 		}
 		assert(t, tx.paramsCount == gotParamsCount, fmt.Sprintf("%s > params count expected: %d, got: %d", tx.path, tx.paramsCount, gotParamsCount))
 
@@ -2320,7 +2362,7 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	paramAccessor := func(ps *Params) {
-		ps.set("x", "y") // though the func is not exported, let's ensure we don't add any concurrent unsafe behavior.
+		ps.appendValue("v") // though the func is not exported, let's ensure we don't add any concurrent unsafe behavior.
 		ps.Get("id")
 		ps.ForEach(func(k, v string) bool {
 			return true

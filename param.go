@@ -11,45 +11,56 @@ type Param struct {
 }
 
 type Params struct {
-	params []Param
 	i      int
 	max    int
+	keys   *[]string
+	values []string
 }
 
 func newParams(cap int) *Params {
 	return &Params{
+		i:      0,
 		max:    cap,
-		params: make([]Param, 0, cap),
+		keys:   nil,
+		values: make([]string, 0, cap),
 	}
 }
 
-func (p *Params) set(k, v string) {
+func (p *Params) setKeys(keys *[]string) {
+	p.keys = keys
+	p.values = p.values[:len(*keys)]
+}
+
+func (p *Params) appendValue(value string) {
 	if p.i >= p.max {
 		return
 	}
-
-	p.params = p.params[:p.i+1]
-	p.params[p.i] = Param{k, v}
+	p.values[p.i] = value
 	p.i++
 }
 
 func (p *Params) reset() {
-	p.params = p.params[:0]
 	p.i = 0
+	p.keys = nil
+	p.values = p.values[:0]
 }
 
 func (p *Params) Get(k string) string {
-	for _, kv := range p.params {
-		if kv.key == k {
-			return kv.value
+	if p.keys != nil {
+		for i, key := range *p.keys {
+			if key == k {
+				return p.values[i]
+			}
 		}
 	}
 	return ""
 }
 
 func (p *Params) ForEach(f func(k, v string) bool) {
-	for i := len(p.params) - 1; i >= 0; i-- {
-		f(p.params[i].key, p.params[i].value)
+	if p.keys != nil {
+		for i := len(*p.keys) - 1; i >= 0; i-- {
+			f((*p.keys)[i], p.values[i])
+		}
 	}
 }
 

@@ -8,13 +8,14 @@ import (
 )
 
 type node struct {
-	prefix   string
-	template string
-	children []*node
-	param    *node
-	wildcard *node
-	handler  HandlerFunc
-	index    struct {
+	prefix    string
+	template  string
+	children  []*node
+	param     *node
+	wildcard  *node
+	handler   HandlerFunc
+	paramKeys *[]string // Nil paramKeys denote the route is static.
+	index     struct {
 		minChar uint8
 		maxChar uint8
 
@@ -72,39 +73,56 @@ func (n *node) insert(path string, handler HandlerFunc) (varsCount int) {
 		return
 	}
 
-	newNode := n.addNode(path)
+	newNode, paramKeys := n.addNode(path)
+	if newNode.handler != nil {
+		panic(fmt.Sprintf("%s conflicts with already registered route %s", path, newNode.template))
+	}
+
 	newNode.template = path
 	newNode.handler = handler
+	if len(paramKeys) > 0 {
+		rs := reverseSlice(paramKeys)
+		newNode.paramKeys = &rs
+	}
 	return
 }
 
-func (n *node) addNode(path string) *node {
+func reverseSlice(s []string) (rs []string) {
+	if len(s) > 1 {
+		for i := 0; i < len(s)/2; i++ {
+			(s)[i], (s)[len(s)-1-i] = (s)[len(s)-1-i], (s)[i]
+		}
+	}
+	return s
+}
+
+func (n *node) addNode(path string) (root *node, paramKeys []string) {
 	if path[0] == '/' {
 		path = path[1:]
 	}
 
-	root := n
+	root = n
 	r := newRouteScanner(path)
 
 	for seg := r.next(); seg != ""; seg = r.next() {
 		switch seg[0] {
 		case ':':
+			paramKeys = append(paramKeys, seg[1:])
 			if root.param != nil {
-				if root.param.prefix != seg {
-					panic(fmt.Sprintf("param node is already registered with the name %s", root.param.prefix))
-				}
 				root = root.param
 				continue
 			}
 
-			root.param = &node{prefix: seg}
+			root.param = &node{prefix: ":"}
 			root = root.param
 		case '*':
+			paramKeys = append(paramKeys, seg[1:])
 			if root.wildcard != nil {
-				panic("wildcard route already registered")
+				root = root.wildcard
+				break
 			}
 
-			root.wildcard = &node{prefix: seg}
+			root.wildcard = &node{prefix: "*"}
 			root = root.wildcard
 		default:
 		DFS:
@@ -174,7 +192,7 @@ func (n *node) addNode(path string) *node {
 		}
 	}
 
-	return root
+	return root, paramKeys
 }
 
 // findCandidateByCharAndSize search for a children by matching the first char and length.
@@ -275,19 +293,26 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 					// path: /foobar
 					// pref: /foobar
 
+					// Dead end #1
 					if child.handler != nil {
+						if child.paramKeys != nil {
+							params = paramInjector()
+							params.setKeys(child.paramKeys)
+						}
 						return child, params
 					}
 
 					// But a handler is not registered :(
 					//
 					// So, lets fallback to wildcard node...
-					// !! No need to perform nil check for handler here since a wildcard node must always have a handler.
+					//// No need to perform nil check for handler and paramKeys here
+					//// since a wildcard node must always have a handler and paramKeys.
+					//
+					// Dead end #2
 					if child.wildcard != nil {
-						if params == nil {
-							params = paramInjector()
-						}
-						params.set(child.wildcard.prefix[1:], path[len(child.prefix):])
+						params = paramInjector()
+						params.setKeys(child.wildcard.paramKeys)
+						params.appendValue(path[len(child.prefix):])
 						return child.wildcard, params
 					}
 
@@ -315,12 +340,11 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 
 		if idx := strings.IndexByte(path, '/'); idx == -1 {
 			// No more sections to match.
+			// Dead end #3
 			if n.param.handler != nil {
-				if params == nil {
-					params = paramInjector()
-				}
-
-				params.set(n.param.prefix[1:], path)
+				params = paramInjector()
+				params.setKeys(n.param.paramKeys) // Param node would always have paramKeys.
+				params.appendValue(path)
 				return n.param, params
 			}
 		} else {
@@ -328,11 +352,7 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 			var innerChild *node
 			innerChild, params = n.param.searchRecursion(path[idx:], params, paramInjector)
 			if innerChild != nil && innerChild.handler != nil {
-				if params == nil {
-					params = paramInjector()
-				}
-
-				params.set(n.param.prefix[1:], path[:idx])
+				params.appendValue(path[:idx])
 				return innerChild, params
 			}
 		}
@@ -340,13 +360,14 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 
 	// No luck with param node :/
 	// Lets fallback to wildcard node.
-	// !! No need to perform nil check for handler here since a wildcard node must always have a handler.
+	//// No need to perform nil check for handler and paramKeys here
+	//// since a wildcard node must always have a handler and paramKeys.
+	//
+	// Dead end #4
 	if n.wildcard != nil {
-		if params == nil {
-			params = paramInjector()
-		}
-
-		params.set(n.wildcard.prefix[1:], path)
+		params = paramInjector()
+		params.setKeys(n.wildcard.paramKeys)
+		params.appendValue(path)
 		return n.wildcard, params
 	}
 
@@ -428,7 +449,7 @@ func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) 
 		buf = newSizedReverseBuffer(lng) // For long paths, allocate a sized buffer on heap.
 	}
 
-	fn, ps := n._caseInsensitiveSearch(path, nil, paramInjector, buf)
+	fn, ps := n.caseInsensitiveSearchRecursion(path, nil, paramInjector, buf)
 	if fn != nil && fn.handler != nil {
 		buf.WriteString("/") // Write leading slash.
 	}
@@ -436,7 +457,7 @@ func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) 
 }
 
 // TODO: optimize search...
-func (n *node) _caseInsensitiveSearch(path string, params *Params, paramInjector func() *Params, buf reverseBuffer) (*node, *Params) {
+func (n *node) caseInsensitiveSearchRecursion(path string, params *Params, paramInjector func() *Params, buf reverseBuffer) (*node, *Params) {
 	var swappedChild bool
 
 	// Look for a child node whose first char equals searching path's first char and prefix length
@@ -449,22 +470,31 @@ TraverseChild:
 		// If child's prefix is fully matched, continue...
 		// Otherwise, fallback...
 		if longest := longestPrefixCaseInsensitive(child.prefix, path); longest == len(child.prefix) {
-
-			// Perfect match. And no further segments are left to cover in the searching path.
 			if longest == len(path) {
+				// Perfect match. And no further segments are left to cover in the searching path.
+				// path: /foobar
+				// pref: /foobar
+
+				// Dead end #1
 				if child.handler != nil {
+					if child.paramKeys != nil {
+						params = paramInjector()
+						params.setKeys(child.paramKeys)
+					}
 					buf.WriteString(child.prefix)
 					return child, params
 				}
 
 				// Though there's a matching node, it doesn't have a handler.
 				// Try to elect matched node's wildcard node.
-				// No need to nil check wildcard node's handler since wildcard nodes would always have a handler.
+				//// No need to perform nil check for handler and paramKeys here
+				//// since a wildcard node must always have a handler and paramKeys.
+				//
+				// Dead end #2
 				if child.wildcard != nil {
-					if params == nil {
-						params = paramInjector()
-					}
-					params.set(child.wildcard.prefix[1:], path[longest:])
+					params = paramInjector()
+					params.setKeys(child.wildcard.paramKeys)
+					params.appendValue(path[longest:])
 					buf.WriteString(path[longest:])
 					return child.wildcard, params
 				}
@@ -475,7 +505,7 @@ TraverseChild:
 
 				// Traverse the child node recursively until a match is found.
 				var dfsChild *node
-				if dfsChild, params = child._caseInsensitiveSearch(path[len(child.prefix):], params, paramInjector, buf); dfsChild != nil && dfsChild.handler != nil {
+				if dfsChild, params = child.caseInsensitiveSearchRecursion(path[len(child.prefix):], params, paramInjector, buf); dfsChild != nil && dfsChild.handler != nil {
 					// Found a matching node with a registered handler.
 					buf.WriteString(child.prefix)
 					return dfsChild, params
@@ -497,18 +527,15 @@ TraverseChild:
 
 	// Fallback to param node.
 	if n.param != nil {
-		r := routeScanner{path: path}
-
-		if params == nil {
-			params = paramInjector()
-		}
-
 		// Check if more segments are left to cover in the searching path.
-		if idx := r.indexOf('/'); idx == -1 {
+		if idx := strings.IndexByte(path, '/'); idx == -1 {
 
 			// No more segments in the path.
+			// Dead end #3
 			if n.param.handler != nil {
-				params.set(n.param.prefix[1:], path)
+				params = paramInjector()
+				params.setKeys(n.param.paramKeys) // Param node would always have paramKeys.
+				params.appendValue(path)
 				buf.WriteString(path)
 				return n.param, params
 			}
@@ -520,8 +547,8 @@ TraverseChild:
 		} else {
 
 			// Traverse the param node until all the segments are exhausted.
-			if child, params = n.param._caseInsensitiveSearch(path[idx:], params, paramInjector, buf); child != nil && child.handler != nil {
-				params.set(n.param.prefix[1:], path[:idx])
+			if child, params = n.param.caseInsensitiveSearchRecursion(path[idx:], params, paramInjector, buf); child != nil && child.handler != nil {
+				params.appendValue(path[:idx])
 				buf.WriteString(path[:idx])
 				return child, params
 			}
@@ -531,14 +558,14 @@ TraverseChild:
 	// Fallback to wildcard node.
 	//
 	// This also facilitates to fall back to the nearest wildcard node in the recursion stack when no match is found.
+	//// No need to perform nil check for handler and paramKeys here
+	//// since a wildcard node must always have a handler and paramKeys.
 	//
-	// No need to nil check wildcard node's handler since wildcard nodes must have a handler.
+	// Dead end #4
 	if n.wildcard != nil {
-		if params == nil {
-			params = paramInjector()
-		}
-
-		params.set(n.wildcard.prefix[1:], path)
+		params = paramInjector()
+		params.setKeys(n.wildcard.paramKeys)
+		params.appendValue(path)
 		buf.WriteString(path)
 		return n.wildcard, params
 	}
