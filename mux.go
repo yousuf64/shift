@@ -44,12 +44,14 @@ func (mux *radixMux) add(path string, isStatic bool, handler HandlerFunc) {
 }
 
 // releaseParamsHandler releases the handler's params object into the sync.Pool after execution.
+// Here the downside is, if panics are not recovered in the chain, Params won't get released to the pool.
 func releaseParamsHandler(pool *sync.Pool, handler HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
 		err = handler(w, r, route)
 
 		// TODO: Check for emptyParams?
 		if route.Params != nil {
+			route.Params.reset()
 			pool.Put(route.Params)
 			route.Params = nil
 		}
@@ -61,7 +63,6 @@ func releaseParamsHandler(pool *sync.Pool, handler HandlerFunc) HandlerFunc {
 func (mux *radixMux) find(path string) (HandlerFunc, *Params, string) {
 	n, ps := mux.tree.search(path, func() *Params {
 		ps := mux.paramsPool.Get().(*Params)
-		ps.reset() // TODO: Reset at Put?
 		return ps
 	})
 
@@ -75,13 +76,13 @@ func (mux *radixMux) find(path string) (HandlerFunc, *Params, string) {
 func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string) {
 	n, ps, matchedPath := mux.tree.caseInsensitiveSearch(path, func() *Params {
 		ps := mux.paramsPool.Get().(*Params)
-		ps.reset() // TODO: Reset at Put?
 		return ps
 	})
 
 	if n != nil && n.handler != nil {
 		// When params obj is not required, just release it to the pool and return a nil.
 		if !withParams && ps != nil {
+			ps.reset()
 			mux.paramsPool.Put(ps)
 			ps = nil
 		}

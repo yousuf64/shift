@@ -2428,7 +2428,7 @@ type recorder struct {
 
 func (rc *recorder) Handler(path string) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) error {
-		rc.params = route.Params
+		rc.params = route.Params.Copy()
 		rc.path = path
 		return nil
 	}

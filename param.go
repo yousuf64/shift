@@ -56,6 +56,12 @@ func (p *Params) Get(k string) string {
 	return ""
 }
 
+func (p *Params) Copy() *Params {
+	cp := new(Params)
+	*cp = *p
+	return cp
+}
+
 func (p *Params) ForEach(f func(k, v string) bool) {
 	if p.keys != nil {
 		for i := len(*p.keys) - 1; i >= 0; i-- {
