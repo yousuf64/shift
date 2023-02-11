@@ -59,6 +59,29 @@ func (p *Params) ForEach(f func(k, v string) bool) {
 	}
 }
 
+func (p *Params) Map() map[string]string {
+	params := make(map[string]string, len(*p.keys))
+
+	for i := len(*p.keys) - 1; i >= 0; i-- {
+		params[(*p.keys)[i]] = p.values[i]
+	}
+
+	return params
+}
+
+func (p *Params) Slice() []Param {
+	params := make([]Param, 0, len(*p.keys))
+
+	for i := len(*p.keys) - 1; i >= 0; i-- {
+		params = append(params, Param{
+			key:   (*p.keys)[i],
+			value: p.values[i],
+		})
+	}
+
+	return params
+}
+
 func (p *Params) Copy() *Params {
 	cp := new(Params)
 	*cp = *p

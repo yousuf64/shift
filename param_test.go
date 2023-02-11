@@ -46,6 +46,46 @@ func TestParams_ForEach(t *testing.T) {
 	})
 }
 
+func TestParams_Map(t *testing.T) {
+	p := newParams(3)
+	p.setKeys(&[]string{"k3", "k2", "k1"})
+	p.appendValue("xyz")
+	p.appendValue("bar")
+	p.appendValue("foo")
+
+	tests := map[string]string{
+		"k1": "foo",
+		"k2": "bar",
+		"k3": "xyz",
+	}
+
+	params := p.Map()
+	for k, v := range tests {
+		val := params[k]
+		assert(t, val == v, fmt.Sprintf("value for key %s, expected: %s, got: %s", k, v, val))
+	}
+}
+
+func TestParams_Slice(t *testing.T) {
+	p := newParams(3)
+	p.setKeys(&[]string{"k3", "k2", "k1"})
+	p.appendValue("xyz")
+	p.appendValue("bar")
+	p.appendValue("foo")
+
+	tests := []struct{ k, v string }{
+		{"k1", "foo"},
+		{"k2", "bar"},
+		{"k3", "xyz"},
+	}
+
+	params := p.Slice()
+	for i := 0; i < len(tests); i++ {
+		assert(t, params[i].key == tests[i].k, fmt.Sprintf("key at index %d > expected: %s, got: %s", i, tests[i].k, params[i].key))
+		assert(t, params[i].value == tests[i].v, fmt.Sprintf("value at index %d > expected: %s, got: %s", i, tests[i].v, params[i].value))
+	}
+}
+
 func TestParams_Copy(t *testing.T) {
 	t.Run("Copy should have a different memory address", func(t *testing.T) {
 		p := newParams(1)
