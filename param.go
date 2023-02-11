@@ -1,10 +1,5 @@
 package dune
 
-import (
-	"context"
-	"net/http"
-)
-
 type Param struct {
 	key   string
 	value string
@@ -56,12 +51,6 @@ func (p *Params) Get(k string) string {
 	return ""
 }
 
-func (p *Params) Copy() *Params {
-	cp := new(Params)
-	*cp = *p
-	return cp
-}
-
 func (p *Params) ForEach(f func(k, v string) bool) {
 	if p.keys != nil {
 		for i := len(*p.keys) - 1; i >= 0; i-- {
@@ -70,29 +59,11 @@ func (p *Params) ForEach(f func(k, v string) bool) {
 	}
 }
 
-var paramKey = &struct{}{}
-
-func withParamsCtx(ctx context.Context, ps *Params) context.Context {
-	return context.WithValue(ctx, paramKey, ps)
-}
-
-func hasParamsCtx(ctx context.Context) bool {
-	return ctx.Value(paramKey) != nil
-}
-
-func paramsFromCtx(ctx context.Context) (*Params, bool) {
-	ps, ok := ctx.Value(paramKey).(*Params)
-	return ps, ok
+func (p *Params) Copy() *Params {
+	cp := new(Params)
+	*cp = *p
+	return cp
 }
 
 // emptyParams is a Params object with 0 capacity, therefore its basically immutable and concurrent safe.
 var emptyParams = newParams(0)
-
-// Vars returns the http.Request's Params from which route variables can be retrieved.
-func Vars(r *http.Request) *Params {
-	if ps, ok := paramsFromCtx(r.Context()); ok {
-		return ps
-	}
-
-	return emptyParams
-}
