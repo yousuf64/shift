@@ -33,12 +33,8 @@ var defaultConfig = &Config{
 	handleMethodNotAllowed: false,
 }
 
-func HandlerAdapter(handler http.HandlerFunc, withContext bool) HandlerFunc {
+func HandlerAdapter(handler http.HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) error {
-		if withContext && route.Params != emptyParams && !hasParamsCtx(r.Context()) {
-			// Inject params into Request Context.
-			r = r.WithContext(withParamsCtx(r.Context(), route.Params))
-		}
 		handler.ServeHTTP(w, r)
 		return nil
 	}
@@ -47,10 +43,6 @@ func HandlerAdapter(handler http.HandlerFunc, withContext bool) HandlerFunc {
 func MiddlewareAdapter(mw func(next http.Handler) http.Handler) MiddlewareFunc {
 	return func(next HandlerFunc) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
-			if route.Params != emptyParams && !hasParamsCtx(r.Context()) {
-				r = r.WithContext(withParamsCtx(r.Context(), route.Params))
-			}
-
 			nextFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				err = next(w, r, route)
 			})
