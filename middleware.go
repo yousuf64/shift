@@ -2,7 +2,7 @@ package dune
 
 import "net/http"
 
-func RecoverMiddleware(next HandlerFunc) HandlerFunc {
+func Recover(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) error {
 		defer func() {
 			recover()
@@ -11,12 +11,12 @@ func RecoverMiddleware(next HandlerFunc) HandlerFunc {
 	}
 }
 
-// RouteContextMiddleware packs Route information into http.Request's Context.
+// RouteContext packs Route information into http.Request context.
 //
-// Use RouteOf to unpack Route information.
+// Use RouteOf to unpack Route information from the http.Request context.
 //
-// It is highly recommended to use this middleware before the RecoverMiddleware.
-func RouteContextMiddleware(next HandlerFunc) HandlerFunc {
+// It is highly recommended to use this middleware before the Recover middleware to lower memory footprints in case of a panic.
+func RouteContext(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
 		ctx := getCtx()
 		ctx.Context = r.Context()

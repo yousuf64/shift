@@ -14,7 +14,10 @@ type Core struct {
 	mws  []MiddlewareFunc
 }
 
-func (c *Core) Group(path string, f func(d *Group)) {
+// Group groups routes together at the given path with a group-scoped middleware stack inherited from the parent middleware stack.
+// It provides the opportunity to maintain groups of routes in different files using the func(g *Group) func signature.
+// It is also possible to nest groups within groups.
+func (c *Core) Group(path string, f func(g *Group)) {
 	stack := make([]MiddlewareFunc, len(c.mws), len(c.mws))
 	copy(stack, c.mws)
 
@@ -25,6 +28,9 @@ func (c *Core) Group(path string, f func(d *Group)) {
 	}})
 }
 
+// With returns an instance attaching middlewares to the middleware stack inherited from the parent middleware stack.
+// It's useful for registering middlewares for a specific Group or a route.
+// To use a net/http idiomatic middleware, wrap the middleware using the MiddlewareAdapter.
 func (c *Core) With(middlewares ...MiddlewareFunc) *Core {
 	stack := make([]MiddlewareFunc, len(c.mws), len(c.mws)+len(middlewares))
 	copy(stack, c.mws)
@@ -37,12 +43,7 @@ func (c *Core) With(middlewares ...MiddlewareFunc) *Core {
 	}
 }
 
-func (c *Core) Mount(path string, dune *Router) {
-	for _, log := range *dune.logs {
-		c.Map([]string{log.method}, path+log.path, log.handler)
-	}
-}
-
+// Map maps a request handler for the given methods at the given path.
 func (c *Core) Map(methods []string, path string, handler HandlerFunc) {
 	if len(methods) == 0 {
 		panic("methods cannot be empty")
@@ -61,44 +62,83 @@ func (c *Core) Map(methods []string, path string, handler HandlerFunc) {
 	}
 }
 
+// GET maps a request handler for the GET method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodGet}, path, handler)
 func (c *Core) GET(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodGet}, path, handler)
 }
 
+// POST maps a request handler for the POST method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodPost}, path, handler)
 func (c *Core) POST(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodPost}, path, handler)
 }
 
+// PUT maps a request handler for the PUT method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodPut}, path, handler)
 func (c *Core) PUT(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodPut}, path, handler)
 }
 
+// PATCH maps a request handler for the PATCH method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodPatch}, path, handler)
 func (c *Core) PATCH(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodPatch}, path, handler)
 }
 
+// DELETE maps a request handler for the DELETE method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodDelete}, path, handler)
 func (c *Core) DELETE(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodDelete}, path, handler)
 }
 
+// OPTIONS maps a request handler for the OPTIONS method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodOptions}, path, handler)
 func (c *Core) OPTIONS(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodOptions}, path, handler)
 }
 
+// HEAD maps a request handler for the HEAD method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodHead}, path, handler)
 func (c *Core) HEAD(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodHead}, path, handler)
 }
 
+// CONNECT maps a request handler for the CONNECT method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodConnect}, path, handler)
 func (c *Core) CONNECT(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodConnect}, path, handler)
 }
 
+// TRACE maps a request handler for the TRACE method at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{http.MethodTrace}, path, handler)
 func (c *Core) TRACE(path string, handler HandlerFunc) {
 	c.Map([]string{http.MethodTrace}, path, handler)
 }
 
-// Any registers the route for all the built-in http methods and registered custom http methods.
-func (c *Core) Any(path string, handler HandlerFunc) {
+// All maps a request handler for all the built-in HTTP methods and registered custom HTTP methods at the given path.
+// It is a shorthand for:
+//
+//	c.Map([]string{""}, path, handler)
+func (c *Core) All(path string, handler HandlerFunc) {
 	c.Map([]string{""}, path, handler)
 }
 

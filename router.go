@@ -33,26 +33,6 @@ var defaultConfig = &Config{
 	handleMethodNotAllowed: false,
 }
 
-func HandlerAdapter(handler http.HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request, route Route) error {
-		handler.ServeHTTP(w, r)
-		return nil
-	}
-}
-
-func MiddlewareAdapter(mw func(next http.Handler) http.Handler) MiddlewareFunc {
-	return func(next HandlerFunc) HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
-			nextFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				err = next(w, r, route)
-			})
-
-			mw(nextFn).ServeHTTP(w, r)
-			return
-		}
-	}
-}
-
 type group = Group
 
 type Router struct {
@@ -82,20 +62,31 @@ func New() *Router {
 	return d
 }
 
+// UseTrailingSlashMatch enables searching for a handler with/without the trailing slash when a match has not been found for the current route.
+// The execution behavior is determined by the set RoutingBehavior.
+//
+// The default behavior is BehaviorSkip, which opt-outs of this feature.
 func (r *Router) UseTrailingSlashMatch(behavior RoutingBehavior) {
 	validateBehavior(behavior)
 	r.config.trailingSlashMatch = behavior
 }
 
+// UseSanitizeURLMatch enables searching for a handler with the URL sanitized when a match has not been found for the current route.
+// The execution behavior is determined by the set RoutingBehavior.
+//
+// The default behavior is BehaviorSkip, which opt-outs of this feature.
 func (r *Router) UseSanitizeURLMatch(behavior RoutingBehavior) {
 	validateBehavior(behavior)
 	r.config.sanitizeUrlMatch = behavior
 }
 
+// UseMethodNotAllowedHandler responds with HTTP status 405 and a list of registered HTTP methods for the path in the 'Allow' header
+// when a match has not been found but the path has been registered for other HTTP methods.
 func (r *Router) UseMethodNotAllowedHandler() {
 	r.config.handleMethodNotAllowed = true
 }
 
+// UseNotFoundHandler registers the handler to execute when a route match is not found.
 func (r *Router) UseNotFoundHandler(f func(w http.ResponseWriter, r *http.Request)) {
 	r.config.notFoundHandler = f
 }
@@ -145,7 +136,7 @@ func (r *Router) RoutesScoped() (routes []RouteInfo) {
 // For example,
 //
 //	d.Group("/v1/foo", func(d *dune.Dune) {
-//		d.Base() # outputs /v1/foo
+//		d.Base() # returns /v1/foo
 //	})
 func (r *Router) Base() string {
 	return r.base
@@ -175,6 +166,7 @@ var builtInMethods = []string{
 	http.MethodConnect,
 }
 
+// Serve generates the Server which implements http.Handler interface.
 func (r *Router) Serve() *Server {
 	svr := &Server{
 		[9]muxInterface{},

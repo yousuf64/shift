@@ -9,7 +9,7 @@ import (
 
 func TestRouteContextMiddleware(t *testing.T) {
 	r := New()
-	r.Use(RouteContextMiddleware)
+	r.Use(RouteContext)
 	r.GET("/foo/:name", func(w http.ResponseWriter, r *http.Request, _ Route) error {
 		route := RouteOf(r)
 		assert(t, route.Template == "/foo/:name", fmt.Sprintf("template > expected: /foo/:name, got: %s", route.Template))
