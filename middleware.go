@@ -18,14 +18,14 @@ func RecoverMiddleware(next HandlerFunc) HandlerFunc {
 // It is highly recommended to use this middleware before the RecoverMiddleware.
 func RouteContextMiddleware(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
-		ctx := getCtxFromPool()
+		ctx := getCtx()
 		ctx.Context = r.Context()
 		ctx.Route = route
 
 		r = r.WithContext(ctx)
 		err = next(w, r, route)
 
-		putCtxToPool(ctx)
+		releaseCtx(ctx)
 		return
 	}
 }
