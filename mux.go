@@ -1,6 +1,7 @@
 package dune
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -117,6 +118,9 @@ func (mux *staticMux) add(path string, isStatic bool, handler HandlerFunc) {
 		mux.sizePlot = append(mux.sizePlot, make([][]string, len(path)-len(mux.sizePlot)+1)...)
 	}
 
+	if _, ok := mux.routes[path]; ok {
+		panic(fmt.Sprintf("route %s already registered", path))
+	}
 	mux.routes[path] = handler
 	mux.sizePlot[len(path)] = append(mux.sizePlot[len(path)], path)
 }
