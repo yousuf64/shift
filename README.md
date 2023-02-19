@@ -1,8 +1,6 @@
 # dune 🚀
 
-`dune` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind.
-
-Under the hood, it uses radix trees and hash maps with lots of indexing to achieve high performance.
+`dune` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
 
 ## Benchmarks
 
@@ -96,8 +94,8 @@ func greet(w http.ResponseWriter, r *http.Request, route dune.Route) error {
 ```
 
 ## Request Handler
-`dune` uses a slightly modified version of the `net/http` handler, with an additional parameter
-which exposes route information. Apart from that, the handler returns an error. It makes it convenient to
+`dune` uses a slightly modified version of the `net/http` request handler, with an additional parameter
+that provides route information. Also, the request handler returns an error. It makes it convenient to
 handle errors in middleware without cluttering the handlers.
 ```go
 func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
@@ -106,7 +104,7 @@ func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
 }
 ```
 
-You also can use `net/http` handlers using the `HandlerAdapter`.
+You can also use `net/http` request handlers using the `HandlerAdapter`.
 ```go
 package main
 
@@ -136,7 +134,7 @@ r.GET('/hello/:name', dune.HandlerAdapter(hello))
 func hello(w http.ResponseWriter, r *http.Request) {
     route := dune.RouteOf(r)
     route.Template // /hello/:name 
-	route.Params.Get('name') // saul
+    route.Params.Get('name') // saul
 }
 ```
 
@@ -151,17 +149,17 @@ Use `MiddlewareAdapter` to bind `net/http` middleware.
 To attach a middleware to the current scope, use `router.Use()`,
 ```go
 func main() {
-	// ...
+    // ...
     r.Use(AuthMiddleware, dune.MiddlewareAdapter(AnotherMiddleware))
     r.GET('/', hello)
     r.POST('/users', createUser)
-	// ...
+    // ...
 }
 
 func AuthMiddleware(next dune.HandlerFunc) dune.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
         // auth logic...
-        // you could circuit break here without calling the next().
+        // you could conditionally circuit break here without calling next().
         return next(w, r, route)
     }
 }
