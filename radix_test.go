@@ -1,6 +1,7 @@
 package dune
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -49,7 +50,7 @@ func TestStatic(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -120,7 +121,7 @@ func TestDynamicRoutes(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -194,17 +195,15 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 
 	tree := &node{}
 
-	paramsCount := 0
+	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1))
 
 		pc := findParamsCount(path)
-		if pc > paramsCount {
-			paramsCount = pc
+		if pc > maxParams {
+			maxParams = pc
 		}
 	}
-
-	params := newParams(paramsCount)
 
 	tt := testTable2{
 		{path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
@@ -240,7 +239,7 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 		{path: "/hero-", valid: false, pathTemplate: "", params: nil},
 	}
 
-	testSearchWithParams(t, tree, params, tt)
+	testSearchWithParams(t, tree, maxParams, tt)
 }
 
 func TestWildcard(t *testing.T) {
@@ -256,7 +255,7 @@ func TestWildcard(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -301,17 +300,15 @@ func TestWildcardParams(t *testing.T) {
 
 	tree := &node{}
 
-	paramsCount := 0
+	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HandlerFunc(fakeHandler1))
+		tree.insert(path, HandlerAdapter(fakeHandler1))
 
 		pc := findParamsCount(path)
-		if pc > paramsCount {
-			paramsCount = pc
+		if pc > maxParams {
+			maxParams = pc
 		}
 	}
-
-	params := newParams(paramsCount)
 
 	tt := testTable2{
 		{path: "/messages/", valid: true, pathTemplate: "/messages/*action", params: map[string]string{"action": ""}}, // todo: fix this issue
@@ -333,7 +330,112 @@ func TestWildcardParams(t *testing.T) {
 		{path: "/hero", valid: false, pathTemplate: "", params: nil},
 	}
 
-	testSearchWithParams(t, tree, params, tt)
+	testSearchWithParams(t, tree, maxParams, tt)
+}
+
+func TestNode_Search_TraversalPathChange(t *testing.T) {
+	t.Run("1", func(t *testing.T) {
+		paths := [...]string{
+			"/search",
+			"/search/:q/stop",
+			"/search/*action",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerAdapter(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/search/cherry/", valid: true, pathTemplate: "/search/*action", params: map[string]string{"action": "cherry/"}},
+			{path: "/search/cherry/berry", valid: true, pathTemplate: "/search/*action", params: map[string]string{"action": "cherry/berry"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("2", func(t *testing.T) {
+		paths := [...]string{
+			"/apple/banana/:f1/:f2/:f3/mango",
+			"/apple/banana/*wc",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerAdapter(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/apple/banana/pineapple/guava/cherry/mandarin", valid: true, pathTemplate: "/apple/banana/*wc", params: map[string]string{"wc": "pineapple/guava/cherry/mandarin"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("3", func(t *testing.T) {
+		paths := [...]string{
+			"/apple/:f1/mango",
+			"/*wc",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerAdapter(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/apple/banana", valid: true, pathTemplate: "/*wc", params: map[string]string{"wc": "apple/banana"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("4", func(t *testing.T) {
+		paths := [...]string{
+			"/cherry/berry/:f2/:f3",
+			"/cherry/:f4/:f5/:f6/:f7",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HandlerAdapter(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/cherry/berry/apple/banana/mango", valid: true, pathTemplate: "/cherry/:f4/:f5/:f6/:f7", params: map[string]string{"f4": "berry", "f5": "apple", "f6": "banana", "f7": "mango"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
 }
 
 func BenchmarkSimple(b *testing.B) {
@@ -358,7 +460,7 @@ func BenchmarkSimple(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HandlerFunc(fakeHandler1))
+		tree.insert(route, HandlerAdapter(fakeHandler1))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -426,7 +528,7 @@ func BenchmarkSimple2(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HandlerFunc(fakeHandler1))
+		tree.insert(route, HandlerAdapter(fakeHandler1))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -495,10 +597,10 @@ func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 	}
 }
 
-func testSearchWithParams(t *testing.T, tree *node, params *Params, table testTable2) {
+func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTable2) {
 	for _, tx := range table {
 		nd, ps := tree.search(tx.path, func() *Params {
-			return newParams(5)
+			return newParams(maxParams)
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
 			t.Errorf("expected: valid handler, got: no handler: %s", tx.path)
@@ -521,4 +623,113 @@ func testSearchWithParams(t *testing.T, tree *node, params *Params, table testTa
 			ps.reset()
 		}
 	}
+}
+
+func TestScanPath(t *testing.T) {
+	t.Parallel()
+	t.Run("Whitespace", func(t *testing.T) {
+		paths := []string{
+			" ",
+			"/ ",
+			"/\t",
+			"/\n",
+			"/\v",
+			"/\f",
+			"/\r",
+			"/hello ",
+			"/hello\t",
+			"/hello\n",
+			"/hello\v",
+			"/hello\f",
+			"/hello\r",
+			"+0085",
+			"U+00A0",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("Wildcard", func(t *testing.T) {
+		paths := []string{
+			// Without name.
+			"/*",
+			"/hello/*",
+
+			// Successive segments.
+			"/*action/hello",
+			"/*action/name",
+			"/*action_:name",
+
+			// Multiple wildcards.
+			"/*foo*bar",
+			"/hello/*foo*bar",
+			"/hello/*foo*bar*baz",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("Param", func(t *testing.T) {
+		paths := []string{
+			// Without name.
+			"/:",
+			"/hello/:",
+			"/hello/:/ccc",
+			"/hello/:/:/:/ccc",
+
+			// param-param / param-wildcard segments within the same scope.
+			"/:aaa:bbb",
+			"/:aaa:bbb/ccc",
+			"/foo/:bar_:baz",
+			"/foo/:bar_:baz/xyz",
+			"/foo/:bar_*abc",
+		}
+
+		for _, path := range paths {
+			if pnk := panicHandler(func() {
+				scanPath(path)
+			}); pnk == nil {
+				panic(fmt.Sprintf("path %s > didn't panic", path))
+			}
+		}
+	})
+
+	t.Run("VarsCount", func(t *testing.T) {
+		paths := map[string]int{
+			"/:foo":                1,
+			"/*foo":                1,
+			"/:foo/:bar":           2,
+			"/:foo/*bar":           2,
+			"/:foo/:bar/:baz":      3,
+			"/:foo/:bar/*baz":      3,
+			"/:foo/:bar/:baz/:abc": 4,
+			"/:foo/:bar/:baz/*abc": 4,
+		}
+
+		for path, c := range paths {
+			vc := scanPath(path)
+			assert(t, c == vc, fmt.Sprintf("path %s vars count > expected: %d, got: %d", path, c, vc))
+		}
+	})
+}
+
+func panicHandler(f func()) (rec any) {
+	defer func() {
+		rec = recover()
+	}()
+
+	f()
+	return
 }

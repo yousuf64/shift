@@ -6,44 +6,87 @@ type Param struct {
 }
 
 type Params struct {
-	params []Param
-	i      uint8
+	i      int
 	max    int
+	keys   *[]string
+	values []string
 }
 
 func newParams(cap int) *Params {
 	return &Params{
+		i:      0,
 		max:    cap,
-		params: make([]Param, 0, cap),
+		keys:   nil,
+		values: make([]string, 0, cap),
 	}
 }
 
-func (p *Params) set(k, v string) {
-	if int(p.i) >= p.max {
+func (p *Params) setKeys(keys *[]string) {
+	p.keys = keys
+	p.values = p.values[:len(*keys)]
+}
+
+func (p *Params) appendValue(value string) {
+	if p.i >= p.max {
 		return
 	}
-
-	p.params = p.params[:p.i+1]
-	p.params[p.i] = Param{k, v}
+	p.values[p.i] = value
 	p.i++
 }
 
 func (p *Params) reset() {
-	p.params = p.params[:0]
 	p.i = 0
+	p.keys = nil
+	p.values = p.values[:0]
 }
 
 func (p *Params) Get(k string) string {
-	for _, kv := range p.params {
-		if kv.key == k {
-			return kv.value
+	if p.keys != nil {
+		for i, key := range *p.keys {
+			if key == k {
+				return p.values[i]
+			}
 		}
 	}
 	return ""
 }
 
 func (p *Params) ForEach(f func(k, v string) bool) {
-	for _, kv := range p.params {
-		f(kv.key, kv.value)
+	if p.keys != nil {
+		for i := len(*p.keys) - 1; i >= 0; i-- {
+			f((*p.keys)[i], p.values[i])
+		}
 	}
 }
+
+func (p *Params) Map() map[string]string {
+	params := make(map[string]string, len(*p.keys))
+
+	for i := len(*p.keys) - 1; i >= 0; i-- {
+		params[(*p.keys)[i]] = p.values[i]
+	}
+
+	return params
+}
+
+func (p *Params) Slice() []Param {
+	params := make([]Param, 0, len(*p.keys))
+
+	for i := len(*p.keys) - 1; i >= 0; i-- {
+		params = append(params, Param{
+			key:   (*p.keys)[i],
+			value: p.values[i],
+		})
+	}
+
+	return params
+}
+
+func (p *Params) Copy() *Params {
+	cp := new(Params)
+	*cp = *p
+	return cp
+}
+
+// emptyParams is a Params object with 0 capacity, therefore its basically immutable and concurrent safe.
+var emptyParams = newParams(0)
