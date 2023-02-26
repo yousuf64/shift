@@ -49,7 +49,7 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Look with/without trailing slash.
-	if svr.config.trailingSlashMatch != BehaviorSkip {
+	if svr.config.trailingSlashMatch.behavior != behaviorSkip {
 		var clean string
 		if len(path) > 0 && path[len(path)-1] == '/' {
 			clean = path[:len(path)-1]
@@ -59,12 +59,12 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		handler, ps, template = mux.find(clean)
 		if handler != nil {
-			switch svr.config.trailingSlashMatch {
-			case BehaviorRedirect:
+			switch svr.config.trailingSlashMatch.behavior {
+			case behaviorRedirect:
 				r.URL.Path = clean
-				http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+				http.Redirect(w, r, r.URL.String(), svr.config.trailingSlashMatch.code)
 				return
-			case BehaviorExecute:
+			case behaviorExecute:
 				if ps == nil {
 					ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
 				}
@@ -79,16 +79,16 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Clean the path and do a case-insensitive search...
-	if svr.config.sanitizeUrlMatch != BehaviorSkip {
+	if svr.config.sanitizeUrlMatch.behavior != behaviorSkip {
 		clean := cleanPath(path)
-		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.sanitizeUrlMatch == BehaviorExecute)
+		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.sanitizeUrlMatch.behavior == behaviorExecute)
 		if handler != nil {
-			switch svr.config.sanitizeUrlMatch {
-			case BehaviorRedirect:
+			switch svr.config.sanitizeUrlMatch.behavior {
+			case behaviorRedirect:
 				r.URL.Path = matchedPath
-				http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+				http.Redirect(w, r, r.URL.String(), svr.config.sanitizeUrlMatch.code)
 				return
-			case BehaviorExecute:
+			case behaviorExecute:
 				if ps == nil {
 					ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
 				}

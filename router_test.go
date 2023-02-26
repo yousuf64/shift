@@ -638,7 +638,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 
 func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorExecute)
+	r.UseSanitizeURLMatch(WithExecute())
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -756,7 +756,7 @@ func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 
 func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorExecute)
+	r.UseSanitizeURLMatch(WithExecute())
 
 	f := func(path string) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {
@@ -1389,7 +1389,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
 
 func BenchmarkRouter_ServeHTTP_CaseInsensitive(b *testing.B) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorRedirect)
+	r.UseSanitizeURLMatch(WithRedirect())
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -1960,31 +1960,9 @@ func TestRouter_CustomNotFoundHandler(t *testing.T) {
 	assert(t, rw.Body.String() == response, fmt.Sprintf("expected: %s, got: %s", response, rw.Body.String()))
 }
 
-func TestRouter_TrailingSlash_Skip(t *testing.T) {
+func TestRouter_TrailingSlash_WithExecute(t *testing.T) {
 	r := New()
-	r.UseTrailingSlashMatch(BehaviorSkip)
-
-	r.GET("/foo", fakeHandler())
-	r.GET("/bar/", fakeHandler())
-
-	srv := r.Serve()
-
-	rw := httptest.NewRecorder()
-	r1, _ := http.NewRequest(http.MethodGet, "/foo/", nil)
-	r2, _ := http.NewRequest(http.MethodGet, "/bar", nil)
-
-	requests := [...]*http.Request{r1, r2}
-
-	for _, req := range requests {
-		srv.ServeHTTP(rw, req)
-		assert(t, rw.Code != http.StatusOK && rw.Code != http.StatusMovedPermanently,
-			fmt.Sprintf("%s > expected: not found, got: %d", req.URL.String(), rw.Code))
-	}
-}
-
-func TestRouter_TrailingSlash_Execute(t *testing.T) {
-	r := New()
-	r.UseTrailingSlashMatch(BehaviorExecute)
+	r.UseTrailingSlashMatch(WithExecute())
 
 	f := func(path string) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {
@@ -2011,9 +1989,9 @@ func TestRouter_TrailingSlash_Execute(t *testing.T) {
 	}
 }
 
-func TestRouter_TrailingSlash_Redirect(t *testing.T) {
+func TestRouter_TrailingSlash_WithRedirect(t *testing.T) {
 	r := New()
-	r.UseTrailingSlashMatch(BehaviorRedirect)
+	r.UseTrailingSlashMatch(WithRedirect())
 
 	r.GET("/foo", fakeHandler())
 	r.GET("/bar/", fakeHandler())
@@ -2033,37 +2011,31 @@ func TestRouter_TrailingSlash_Redirect(t *testing.T) {
 	}
 }
 
-func TestRouter_FixedPath_Skip(t *testing.T) {
+func TestRouter_TrailingSlash_WithRedirectCustom(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorSkip)
+	r.UseTrailingSlashMatch(WithRedirectCustom(399))
 
-	r.GET("/abc/def", fakeHandler())
-	r.GET("/abc/def/ghi", fakeHandler())
-	r.GET("/mno", fakeHandler())
-	r.GET("/abc/def/jkl", fakeHandler())
+	r.GET("/foo", fakeHandler())
+	r.GET("/bar/", fakeHandler())
 
 	srv := r.Serve()
 
 	rw := httptest.NewRecorder()
+	r1, _ := http.NewRequest(http.MethodGet, "/foo/", nil)
+	r2, _ := http.NewRequest(http.MethodGet, "/bar", nil)
 
-	r1, _ := http.NewRequest(http.MethodGet, "abc/def", nil)
-	r2, _ := http.NewRequest(http.MethodGet, "/abc//def//ghi", nil)
-	r3, _ := http.NewRequest(http.MethodGet, "/./abc/def", nil)
-	r4, _ := http.NewRequest(http.MethodGet, "/abc/def/../../../ghi/jkl/../../../mno", nil)
-	r5, _ := http.NewRequest(http.MethodGet, "/abc/def/ghi/../jkl", nil)
-
-	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+	requests := [...]*http.Request{r1, r2}
 
 	for _, req := range requests {
 		srv.ServeHTTP(rw, req)
-		assert(t, rw.Code != http.StatusOK && rw.Code != http.StatusMovedPermanently,
-			fmt.Sprintf("%s > expected: not found, got: %d", req.URL.String(), rw.Code))
+		assert(t, rw.Code == 399,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), 399, rw.Code))
 	}
 }
 
-func TestRouter_FixedPath_Execute(t *testing.T) {
+func TestRouter_SanitizeURL_WithExecute(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorExecute)
+	r.UseSanitizeURLMatch(WithExecute())
 
 	r.GET("/abc/def", fakeHandler())
 	r.GET("/abc/def/ghi", fakeHandler())
@@ -2088,9 +2060,9 @@ func TestRouter_FixedPath_Execute(t *testing.T) {
 			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusOK, rw.Code))
 	}
 }
-func TestRouter_FixedPath_Redirect(t *testing.T) {
+func TestRouter_SanitizeURL_WithRedirect(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(BehaviorRedirect)
+	r.UseSanitizeURLMatch(WithRedirect())
 
 	r.GET("/abc/def", fakeHandler())
 	r.GET("/abc/def/ghi", fakeHandler())
@@ -2113,6 +2085,34 @@ func TestRouter_FixedPath_Redirect(t *testing.T) {
 		srv.ServeHTTP(rw, req)
 		assert(t, rw.Code == http.StatusMovedPermanently,
 			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusMovedPermanently, rw.Code))
+	}
+}
+
+func TestRouter_SanitizeURL_WithRedirectCustom(t *testing.T) {
+	r := New()
+	r.UseSanitizeURLMatch(WithRedirectCustom(364))
+
+	r.GET("/abc/def", fakeHandler())
+	r.GET("/abc/def/ghi", fakeHandler())
+	r.GET("/mno", fakeHandler())
+	r.GET("/abc/def/jkl", fakeHandler())
+
+	srv := r.Serve()
+
+	rw := httptest.NewRecorder()
+
+	r1, _ := http.NewRequest(http.MethodGet, "abc/def", nil)
+	r2, _ := http.NewRequest(http.MethodGet, "/abc//def//ghi", nil)
+	r3, _ := http.NewRequest(http.MethodGet, "/./abc/def", nil)
+	r4, _ := http.NewRequest(http.MethodGet, "/abc/def/../../../ghi/jkl/../../../mno", nil)
+	r5, _ := http.NewRequest(http.MethodGet, "/abc/def/ghi/../jkl", nil)
+
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
+
+	for _, req := range requests {
+		srv.ServeHTTP(rw, req)
+		assert(t, rw.Code == 364,
+			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), 364, rw.Code))
 	}
 }
 
@@ -2409,6 +2409,32 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestWithRedirectCustom(t *testing.T) {
+	t.Run("in 3XX", func(t *testing.T) {
+		statusCode := 333
+		rec := panicHandler(func() {
+			WithRedirectCustom(statusCode)
+		})
+		assert(t, rec == nil, fmt.Sprintf("expected not to panic for %d", statusCode))
+	})
+
+	t.Run("< 3XX", func(t *testing.T) {
+		statusCode := 280
+		rec := panicHandler(func() {
+			WithRedirectCustom(statusCode)
+		})
+		assert(t, rec != nil, fmt.Sprintf("expected to panic for %d", statusCode))
+	})
+
+	t.Run("> 3XX", func(t *testing.T) {
+		statusCode := 420
+		rec := panicHandler(func() {
+			WithRedirectCustom(statusCode)
+		})
+		assert(t, rec != nil, fmt.Sprintf("expected to panic for %d", statusCode))
+	})
 }
 
 func assert(t *testing.T, expectation bool, message string) {
