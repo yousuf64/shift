@@ -5,30 +5,30 @@ import (
 	"strings"
 )
 
-type RoutingBehavior uint8
+type routingBehavior uint8
 
 const (
-	BehaviorSkip     RoutingBehavior = iota // BehaviorSkip action opts-out of the feature.
-	BehaviorRedirect                        // BehaviorRedirect action replies with the status 301 (http.StatusMovedPermanently) and the redirect url.
-	BehaviorExecute                         // BehaviorExecute action executes the matched route handler immediately.
+	behaviorSkip routingBehavior = iota
+	behaviorRedirect
+	behaviorExecute
 )
 
-func validateBehavior(behavior RoutingBehavior) {
-	if behavior > 2 {
-		panic("invalid routing behavior")
-	}
-}
-
 type Config struct {
-	trailingSlashMatch     RoutingBehavior
-	sanitizeUrlMatch       RoutingBehavior
+	trailingSlashMatch     *actionConfig
+	sanitizeUrlMatch       *actionConfig
 	notFoundHandler        func(w http.ResponseWriter, r *http.Request)
 	handleMethodNotAllowed bool
 }
 
 var defaultConfig = &Config{
-	trailingSlashMatch:     BehaviorSkip,
-	sanitizeUrlMatch:       BehaviorSkip,
+	trailingSlashMatch: &actionConfig{
+		behavior: behaviorSkip,
+		code:     0,
+	},
+	sanitizeUrlMatch: &actionConfig{
+		behavior: behaviorSkip,
+		code:     0,
+	},
 	notFoundHandler:        http.NotFound,
 	handleMethodNotAllowed: false,
 }
@@ -63,21 +63,15 @@ func New() *Router {
 }
 
 // UseTrailingSlashMatch enables searching for a handler with/without the trailing slash when a match has not been found for the current route.
-// The execution behavior is determined by the set RoutingBehavior.
-//
-// The default behavior is BehaviorSkip, which opt-outs of this feature.
-func (r *Router) UseTrailingSlashMatch(behavior RoutingBehavior) {
-	validateBehavior(behavior)
-	r.config.trailingSlashMatch = behavior
+// Use WithExecute, WithRedirect or WithRedirectCustom to set the behavior.
+func (r *Router) UseTrailingSlashMatch(opt ActionOption) {
+	opt.apply(r.config.trailingSlashMatch)
 }
 
-// UseSanitizeURLMatch enables searching for a handler with the URL sanitized when a match has not been found for the current route.
-// The execution behavior is determined by the set RoutingBehavior.
-//
-// The default behavior is BehaviorSkip, which opt-outs of this feature.
-func (r *Router) UseSanitizeURLMatch(behavior RoutingBehavior) {
-	validateBehavior(behavior)
-	r.config.sanitizeUrlMatch = behavior
+// UseSanitizeURLMatch enables searching for a handler after sanitized the URL when a match has not been found for the current route.
+// Use WithExecute, WithRedirect or WithRedirectCustom to set the behavior.
+func (r *Router) UseSanitizeURLMatch(opt ActionOption) {
+	opt.apply(r.config.sanitizeUrlMatch)
 }
 
 // UseMethodNotAllowedHandler responds with HTTP status 405 and a list of registered HTTP methods for the path in the 'Allow' header
@@ -243,4 +237,44 @@ func groupLogsByMethods(logs []routeLog) (methodInfoMap map[string]*methodInfo) 
 	}
 
 	return
+}
+
+type actionConfig struct {
+	behavior routingBehavior
+	code     int
+}
+
+type ActionOption interface {
+	apply(c *actionConfig)
+}
+
+type actionOption func(c *actionConfig)
+
+func (o actionOption) apply(c *actionConfig) {
+	o(c)
+}
+
+// WithExecute executes the matched request handler immediately.
+func WithExecute() ActionOption {
+	return actionOption(func(c *actionConfig) {
+		c.behavior = behaviorExecute
+		c.code = 0
+	})
+}
+
+// WithRedirect writes the status code 301 (http.StatusMovedPermanently) and the redirect url to the header.
+func WithRedirect() ActionOption {
+	return WithRedirectCustom(http.StatusMovedPermanently)
+}
+
+// WithRedirectCustom writes the provided status code and the redirect url to the header.
+// statusCode should be in the range 3XX.
+func WithRedirectCustom(statusCode int) ActionOption {
+	if statusCode < 300 || statusCode > 399 {
+		panic("status code should be in the range 3XX")
+	}
+	return actionOption(func(c *actionConfig) {
+		c.behavior = behaviorRedirect
+		c.code = statusCode
+	})
 }
