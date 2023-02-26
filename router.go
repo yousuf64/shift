@@ -62,14 +62,14 @@ func New() *Router {
 	return d
 }
 
-// UseTrailingSlashMatch enables searching for a handler with/without the trailing slash when a match has not been found for the current route.
-// Use WithExecute, WithRedirect or WithRedirectCustom to set the behavior.
+// UseTrailingSlashMatch when enabled, re-performs a search with/without the trailing slash when an exact match has not been found.
+// Use WithExecute, WithRedirect or WithRedirectCustom to set the routing behavior.
 func (r *Router) UseTrailingSlashMatch(opt ActionOption) {
 	opt.apply(r.config.trailingSlashMatch)
 }
 
-// UseSanitizeURLMatch enables searching for a handler after sanitized the URL when a match has not been found for the current route.
-// Use WithExecute, WithRedirect or WithRedirectCustom to set the behavior.
+// UseSanitizeURLMatch when enabled, performs a case-insensitive search after sanitizing the URL when an exact match has not been found.
+// Use WithExecute, WithRedirect or WithRedirectCustom to set the routing behavior.
 func (r *Router) UseSanitizeURLMatch(opt ActionOption) {
 	opt.apply(r.config.sanitizeUrlMatch)
 }
@@ -163,7 +163,7 @@ var builtInMethods = []string{
 // Serve generates the Server which implements http.Handler interface.
 func (r *Router) Serve() *Server {
 	svr := &Server{
-		[9]muxInterface{},
+		[9]multiplexer{},
 		nil,
 		nil,
 		r.config,

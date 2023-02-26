@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-type muxInterface interface {
+type multiplexer interface {
 	add(path string, isStatic bool, handler HandlerFunc)
 	find(path string) (HandlerFunc, *Params, string)
 	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *Params, matchedPath string)

@@ -7,9 +7,9 @@ import (
 )
 
 type Server struct {
-	muxes       [9]muxInterface         // Muxes for default http methods.
-	muxIndices  []int                   // Indices of non-nil muxes.
-	customMuxes map[string]muxInterface // Muxes for custom http methods.
+	muxes       [9]multiplexer         // Muxes for default http methods.
+	muxIndices  []int                  // Indices of non-nil muxes.
+	customMuxes map[string]multiplexer // Muxes for custom http methods.
 	config      *Config
 }
 
@@ -19,7 +19,7 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
 	}
 
-	var mux muxInterface
+	var mux multiplexer
 	if idx := methodIndex(r.Method); idx >= 0 {
 		mux = svr.muxes[idx]
 	} else {
@@ -78,7 +78,7 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Clean the path and do a case-insensitive search...
+	// Sanitize the path and do a case-insensitive search...
 	if svr.config.sanitizeUrlMatch.behavior != behaviorSkip {
 		clean := cleanPath(path)
 		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.sanitizeUrlMatch.behavior == behaviorExecute)
@@ -113,7 +113,7 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (svr *Server) populateRoutes(methods map[string]*methodInfo) {
 	for meth, info := range methods {
-		var mux muxInterface
+		var mux multiplexer
 
 		total := len(info.logs) // Total routes in the method.
 		staticPercentage := float64(info.staticRoutes) / float64(total) * 100
@@ -143,7 +143,7 @@ func (svr *Server) populateRoutes(methods map[string]*methodInfo) {
 			})
 		} else {
 			if svr.customMuxes == nil {
-				svr.customMuxes = make(map[string]muxInterface)
+				svr.customMuxes = make(map[string]multiplexer)
 			}
 			svr.customMuxes[meth] = mux
 		}

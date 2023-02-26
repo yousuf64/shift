@@ -1,7 +1,5 @@
 package dune
 
-import "strings"
-
 type routeScanner struct {
 	path string
 	low  int
@@ -43,8 +41,4 @@ Loop:
 	r.low = r.high
 
 	return seg
-}
-
-func (r *routeScanner) indexOf(c uint8) int {
-	return strings.IndexByte(r.path, c)
 }
