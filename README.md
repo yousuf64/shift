@@ -21,9 +21,9 @@ go get -u github.com/yousuf-git/dune-project
   * Case-insensitive route matching
   * Trailing slash (with/without) route matching
   * Path autocorrection
-  * No route conflict limitations (`/posts/:id` and `/posts/export` is allowed)
+  * No route conflict/overlapping limitations (`/posts/:id` and `/posts/export` is allowed)
   * Allows different param names over the same path (`/users/:name` and `/users/:id/delete` is valid)
-  * Mid-segment param (`/v:version/jobs`, `/stream_*url`)
+  * Mid-segment params (`/v:version/jobs`, `/stream_*url`)
 * Lightweight
 * Zero external dependencies
 
@@ -59,7 +59,7 @@ func greet(w http.ResponseWriter, r *http.Request, route dune.Route) error {
 
 ```
 ## Routing System
-`dune` routing system is very powerful and straightforward.
+`dune` has a very powerful and flexible routing system.
 ```
 > Pattern: /foo
     /foo              match
@@ -189,7 +189,45 @@ Check out middleware examples.
 
 Check out error handling examples.
 
+## Trailing Slash, Path Autocorrection & Case-Insensitive Match
+If the registered route is `/foo` and you want both `/foo` and `/foo/` to match the handler, enable the trailing slash matching feature.
+```go
+r := dune.New()
+r.UseTrailingSlashMatch(dune.WithExecute())
+
+r.GET('/foo', fooHandler) // Matches both /foo and /foo/
+r.GET('/bar/', barHandler) // Matches both /bar/ and /bar
+```
+
+If you want `dune` to take care of sanitizing the URL path, enable URL sanitizing feature, which sanitizes the URL and perform a case-insensitive search instead of a regular search.
+```go
+r := dune.New()
+r.UseSanitizeURLMatch(dune.WithRedirect())
+
+r.GET('/foo', fooHandler) // Matches /foo, /Foo, /fOO, /fOo, and so on...
+r.GET('/bar/', barHandler) // Matches /bar/, /Bar/, /bAr/, /BAR, /baR/, and so on...
+```
+
+Both `UseTrailingSlashMatch` and `UseSanitizeURLMatch` expects an `ActionOption` which provides the routing behavior for the fallback handler, `dune` provides three behavior providers:
+* `WithExecute()` - Executes the request handler of the correct route.
+* `WithRedirect()` - Return HTTP 304 (Moved Permanently) status and writes the correct path as the redirect url to the header.
+* `WithRedirectCustom(statusCode)` - Is same as `WithRedirect`, except it writes the provided status code (should be in range 3XX).
+
 ## Route Information
 In a `dune` style request handler, you can access route information such as the route template and route params directly through the `route` argument.
 
 In a `net/http` style request handler, you'd have to use the `RouteContext` middleware and within the request handler, use `RouteOf` to retrieve the `route` object.
+
+### Using Route and Params in GoRoutines
+When using `Route` or `Params` object in a Go Routine, make sure to get a clone using `Copy()` which is available for both the objects.
+```go
+func handler(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+	go fooWorker(route.Copy()) // Copies the whole Route object along with the internal Params object
+	go barWorker(route.Params.Copy()) // Copies only the Params object
+	return nil
+}
+
+func fooWorker(route dune.Route) {}
+
+func barWorker(ps dune.Params) {}
+```
