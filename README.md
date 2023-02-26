@@ -42,7 +42,7 @@ func main() {
 	r := dune.New()
 
 	// Middleware
-	r.Use(dune.Recover)
+	r.Use(dune.Recover())
 
 	// Routes
 	r.GET("/", greet)
@@ -128,7 +128,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 To retrieve Route information from a `net/http` handler, use the `RouteContext` middleware and `RouteOf` function.
 ```go
-r.Use(dune.RouteContext)
+r.Use(dune.RouteContext())
 r.GET('/hello/:name', dune.HandlerAdapter(hello))
 
 func hello(w http.ResponseWriter, r *http.Request) {
