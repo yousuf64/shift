@@ -2,17 +2,17 @@ package main
 
 import (
 	"errors"
-	"github.com/yousuf-git/dune-project"
+	"github.com/yousuf64/ape"
 	"net/http"
 )
 
 func main() {
-	r := dune.New()
+	r := ape.New()
 	r.Use(errorHandler)
-	r.GET("/order", func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+	r.GET("/order", func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 		return errors.New("unable to publish the event")
 	})
-	r.GET("/pay", func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+	r.GET("/pay", func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 		return customError{
 			StatusCode: http.StatusPaymentRequired,
 			Message:    "missing payment method",
@@ -31,8 +31,8 @@ func (e customError) Error() string {
 	return e.Message
 }
 
-func errorHandler(next dune.HandlerFunc) dune.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func errorHandler(next ape.HandlerFunc) ape.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 		err := next(w, r, route)
 		if err != nil {
 			switch err := err.(type) {

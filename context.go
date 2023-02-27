@@ -1,4 +1,4 @@
-package dune
+package ape
 
 import (
 	"context"
