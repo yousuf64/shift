@@ -3,7 +3,37 @@
 `ape` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
 
 ## Benchmarks
+Benchmark suite: https://github.com/yousuf64/http-routing-benchmark
 
+![benchmark workflow](https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml/badge.svg)
+
+Comparison between Ape, Gin and Echo as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
+```
+goos: windows
+goarch: amd64
+pkg: http-routing-benchmark
+cpu: 12th Gen Intel(R) Core(TM) i7-1265U
+BenchmarkApe_CaseInsensitiveAll-12               1750636               635.6 ns/op             0 B/op          0 allocs/op
+BenchmarkGin_CaseInsensitiveAll-12               1000000              1066 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_GithubAll-12                          79966             14575 ns/op               0 B/op          0 allocs/op
+BenchmarkGin_GithubAll-12                          49107             25962 ns/op            9911 B/op        154 allocs/op
+BenchmarkEcho_GithubAll-12                         54187             26318 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_GPlusAll-12                         2492064               632.7 ns/op             0 B/op          0 allocs/op
+BenchmarkGin_GPlusAll-12                         1415556               837.9 ns/op             0 B/op          0 allocs/op
+BenchmarkEcho_GPlusAll-12                        1000000              1154 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_OverlappingRoutesAll-12              923211              1174 ns/op               0 B/op          0 allocs/op
+BenchmarkGin_OverlappingRoutesAll-12              352972              4029 ns/op            1953 B/op         32 allocs/op
+BenchmarkEcho_OverlappingRoutesAll-12             552678              2310 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_ParseAll-12                         1490170               838.6 ns/op             0 B/op          0 allocs/op
+BenchmarkGin_ParseAll-12                          748366              1492 ns/op               0 B/op          0 allocs/op
+BenchmarkEcho_ParseAll-12                         697556              1829 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_RandomAll-12                         817633              1241 ns/op               0 B/op          0 allocs/op
+BenchmarkGin_RandomAll-12                         292681              4675 ns/op            2201 B/op         34 allocs/op
+BenchmarkEcho_RandomAll-12                        428557              2717 ns/op               0 B/op          0 allocs/op
+BenchmarkApe_StaticAll-12                         452316              2595 ns/op               0 B/op          0 allocs/op
+BenchmarkGin_StaticAll-12                         128896              9701 ns/op               0 B/op          0 allocs/op
+BenchmarkEcho_StaticAll-12                        106158             10877 ns/op               0 B/op          0 allocs/op
+```
 
 ## Install
 
