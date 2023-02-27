@@ -212,12 +212,12 @@ r.With(AuthMiddleware).Group("/v1", v1Group)
 | Recover            | Gracefully handle panics                                |
 
 ### Custom Middleware
-Check out middleware examples.
+Check out [middleware examples](/example/03-middleware/main.go).
 
 ## Error Handling
 `ape` makes it very convenient to centralize error handling without cluttering the handlers using the middlewares.
 
-Check out error handling examples.
+Check out [error handling examples](/example/04-error-handler/main.go).
 
 ## Trailing Slash, Path Autocorrection & Case-Insensitive Match
 If the registered route is `/foo` and you want both `/foo` and `/foo/` to match the handler, enable the trailing slash matching feature.
