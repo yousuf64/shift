@@ -5,7 +5,7 @@
 ## Benchmarks
 Benchmark suite: https://github.com/yousuf64/http-routing-benchmark
 
-![benchmark workflow](https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml/badge.svg)
+Benchmark on GitHub Actions: https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml
 
 Comparison between Ape, Gin and Echo as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
 ```
