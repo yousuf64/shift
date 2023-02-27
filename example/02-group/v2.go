@@ -1,16 +1,16 @@
 package main
 
 import (
-	"github.com/yousuf-git/dune-project"
+	"github.com/yousuf64/ape"
 	"net/http"
 )
 
-func groupV2(g *dune.Group) {
-	g.GET("/abc", func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func groupV2(g *ape.Group) {
+	g.GET("/abc", func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 		_, err := w.Write([]byte("v2.go file: abc"))
 		return err
 	})
-	g.GET("/xyz", func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+	g.GET("/xyz", func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 		_, err := w.Write([]byte("v2.go file: xyz"))
 		return err
 	})

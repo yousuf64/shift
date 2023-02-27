@@ -1,4 +1,4 @@
-package dune
+package ape
 
 type Param struct {
 	key   string

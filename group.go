@@ -1,4 +1,4 @@
-package dune
+package ape
 
 type core = Core
 

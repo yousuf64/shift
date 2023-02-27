@@ -1,3 +1,3 @@
-module github.com/yousuf-git/dune-project
+module github.com/yousuf64/ape
 
 go 1.19

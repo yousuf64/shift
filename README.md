@@ -1,6 +1,6 @@
-# dune 🚀
+# ape
 
-`dune` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
+`ape` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
 
 ## Benchmarks
 
@@ -8,7 +8,7 @@
 ## Install
 
 ```
-go get -u github.com/yousuf-git/dune-project
+go get -u github.com/yousuf64/ape
 ```
 
 ## Features
@@ -33,16 +33,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/yousuf-git/dune-project"
+	"github.com/yousuf64/ape"
 	"net/http"
 )
 
 func main() { 
 	// Router
-	r := dune.New()
+	r := ape.New()
 
 	// Middleware
-	r.Use(dune.Recover())
+	r.Use(ape.Recover())
 
 	// Routes
 	r.GET("/", greet)
@@ -52,14 +52,14 @@ func main() {
 }
 
 // Handler
-func greet(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func greet(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 	_, err := w.Write([]byte("hello!"))
 	return err
 }
 
 ```
 ## Routing System
-`dune` has a very powerful and flexible routing system.
+`ape` has a very powerful and flexible routing system.
 ```
 > Pattern: /foo
     /foo              match
@@ -94,11 +94,11 @@ func greet(w http.ResponseWriter, r *http.Request, route dune.Route) error {
 ```
 
 ## Request Handler
-`dune` uses a slightly modified version of the `net/http` request handler, with an additional parameter
+`ape` uses a slightly modified version of the `net/http` request handler, with an additional parameter
 that provides route information. Also, the request handler returns an error. It makes it convenient to
 handle errors in middleware without cluttering the handlers.
 ```go
-func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 	_, err := w.Write([]byte("hello world!"))
 	return err
 }
@@ -109,14 +109,14 @@ You can also use `net/http` request handlers using the `HandlerAdapter`.
 package main
 
 import (
-	"github.com/yousuf-git/dune-project"
+	"github.com/yousuf64/ape"
 	"net/http"
 )
 
 func main() {
 	// ...
 	
-	r.GET('/', dune.HandlerAdapter(hello))
+	r.GET('/', ape.HandlerAdapter(hello))
 	
 	// ...
 }
@@ -128,20 +128,20 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 To retrieve Route information from a `net/http` handler, use the `RouteContext` middleware and `RouteOf` function.
 ```go
-r.Use(dune.RouteContext())
-r.GET('/hello/:name', dune.HandlerAdapter(hello))
+r.Use(ape.RouteContext())
+r.GET('/hello/:name', ape.HandlerAdapter(hello))
 
 func hello(w http.ResponseWriter, r *http.Request) {
-    route := dune.RouteOf(r)
+    route := ape.RouteOf(r)
     route.Template // /hello/:name 
     route.Params.Get('name') // saul
 }
 ```
 
 ## Middlewares
-`dune` supports both `dune` and `net/http` style middlewares. Which means you can use any stdlib compatible middlewares.
+`ape` supports both `ape` and `net/http` style middlewares. Which means you can use any stdlib compatible middlewares.
 
-* `dune` middleware signature: `func (next dune.HandlerFunc) dune.HandlerFunc`
+* `ape` middleware signature: `func (next ape.HandlerFunc) ape.HandlerFunc`
 * `net/http` middleware signature: `func (next http.Handler) http.Handler`
 
 Use `MiddlewareAdapter` to bind `net/http` middleware.
@@ -150,14 +150,14 @@ To attach a middleware to the current scope, use `router.Use()`,
 ```go
 func main() {
     // ...
-    r.Use(AuthMiddleware, dune.MiddlewareAdapter(AnotherMiddleware))
+    r.Use(AuthMiddleware, ape.MiddlewareAdapter(AnotherMiddleware))
     r.GET('/', hello)
     r.POST('/users', createUser)
     // ...
 }
 
-func AuthMiddleware(next dune.HandlerFunc) dune.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func AuthMiddleware(next ape.HandlerFunc) ape.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request, route ape.Route) error {
         // auth logic...
         // you could conditionally circuit break here without calling next().
         return next(w, r, route)
@@ -170,7 +170,7 @@ func AnotherMiddleware(next http.Handler) http.Handler
 ```
 To attach a middleware to a specific request handler or a group, use `router.With()`,
 ```go
-r.With(AuthMiddleware, dune.MiddlewareAdapter(AnotherMiddleware)).GET("/", hello)
+r.With(AuthMiddleware, ape.MiddlewareAdapter(AnotherMiddleware)).GET("/", hello)
 r.With(AuthMiddleware).Group("/v1", v1Group)
 ```
 
@@ -185,49 +185,49 @@ r.With(AuthMiddleware).Group("/v1", v1Group)
 Check out middleware examples.
 
 ## Error Handling
-`dune` makes it very convenient to centralize error handling without cluttering the handlers using the middlewares.
+`ape` makes it very convenient to centralize error handling without cluttering the handlers using the middlewares.
 
 Check out error handling examples.
 
 ## Trailing Slash, Path Autocorrection & Case-Insensitive Match
 If the registered route is `/foo` and you want both `/foo` and `/foo/` to match the handler, enable the trailing slash matching feature.
 ```go
-r := dune.New()
-r.UseTrailingSlashMatch(dune.WithExecute())
+r := ape.New()
+r.UseTrailingSlashMatch(ape.WithExecute())
 
 r.GET('/foo', fooHandler) // Matches both /foo and /foo/
 r.GET('/bar/', barHandler) // Matches both /bar/ and /bar
 ```
 
-If you want `dune` to take care of sanitizing the URL path, enable URL sanitizing feature, which sanitizes the URL and perform a case-insensitive search instead of a regular search.
+If you want `ape` to take care of sanitizing the URL path, enable URL sanitizing feature, which sanitizes the URL and perform a case-insensitive search instead of a regular search.
 ```go
-r := dune.New()
-r.UseSanitizeURLMatch(dune.WithRedirect())
+r := ape.New()
+r.UseSanitizeURLMatch(ape.WithRedirect())
 
 r.GET('/foo', fooHandler) // Matches /foo, /Foo, /fOO, /fOo, and so on...
 r.GET('/bar/', barHandler) // Matches /bar/, /Bar/, /bAr/, /BAR, /baR/, and so on...
 ```
 
-Both `UseTrailingSlashMatch` and `UseSanitizeURLMatch` expects an `ActionOption` which provides the routing behavior for the fallback handler, `dune` provides three behavior providers:
+Both `UseTrailingSlashMatch` and `UseSanitizeURLMatch` expects an `ActionOption` which provides the routing behavior for the fallback handler, `ape` provides three behavior providers:
 * `WithExecute()` - Executes the request handler of the correct route.
 * `WithRedirect()` - Return HTTP 304 (Moved Permanently) status and writes the correct path as the redirect url to the header.
 * `WithRedirectCustom(statusCode)` - Is same as `WithRedirect`, except it writes the provided status code (should be in range 3XX).
 
 ## Route Information
-In a `dune` style request handler, you can access route information such as the route template and route params directly through the `route` argument.
+In a `ape` style request handler, you can access route information such as the route template and route params directly through the `route` argument.
 
 In a `net/http` style request handler, you'd have to use the `RouteContext` middleware and within the request handler, use `RouteOf` to retrieve the `route` object.
 
 ### Using Route and Params in GoRoutines
 When using `Route` or `Params` object in a Go Routine, make sure to get a clone using `Copy()` which is available for both the objects.
 ```go
-func handler(w http.ResponseWriter, r *http.Request, route dune.Route) error {
+func handler(w http.ResponseWriter, r *http.Request, route ape.Route) error {
 	go fooWorker(route.Copy()) // Copies the whole Route object along with the internal Params object
 	go barWorker(route.Params.Copy()) // Copies only the Params object
 	return nil
 }
 
-func fooWorker(route dune.Route) {}
+func fooWorker(route ape.Route) {}
 
-func barWorker(ps dune.Params) {}
+func barWorker(ps ape.Params) {}
 ```
