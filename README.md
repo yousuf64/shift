@@ -35,6 +35,12 @@ BenchmarkGin_StaticAll-12                         128896              9701 ns/op
 BenchmarkEcho_StaticAll-12                        106158             10877 ns/op               0 B/op          0 allocs/op
 ```
 
+* Column 1: Benchmark name
+* Column 2: Number of iterations, higher means more confident result
+* Column 3: Nanoseconds elapsed per operation (ns/op), lower is better
+* Column 4: Number of bytes allocated on heap per operation (B/op), lower is better
+* Column 5: Average allocations per operation (allocs/op), lower is better
+
 ## Install
 
 ```
