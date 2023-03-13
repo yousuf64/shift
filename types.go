@@ -35,7 +35,7 @@ type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 //
 // 1. Use RouteContext middleware to pack Route information into the http.Request context.
 //
-//	router.Use(ape.RouteContext())
+//	router.Use(shift.RouteContext())
 //
 // 2. Use RouteOf func to unpack from the http.Request context.
 //

@@ -14,7 +14,7 @@ var ctxKey uint8
 // When pooling routeCtx in a sync.Pool, make sure to reset the object before putting back to the pool.
 //
 //	pool := sync.Pool{...}
-//	ctx = ape.WithRoute(ctx, route)
+//	ctx = shift.WithRoute(ctx, route)
 //	ctx.reset()
 //	pool.Put(ctx)
 type routeCtx struct {
