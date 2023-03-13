@@ -276,7 +276,7 @@ func (n *node) search(path string, paramInjector func() *Params) (*node, *Params
 
 // searchRecursion recursively traverses the radix tree looking for a matching node.
 // Returns the matched node if found.
-// Returns Params only when matched node is a param node. Returns nil otherwise.
+// Returns Params only when matched node is a param node. Returns <nil> otherwise.
 func (n *node) searchRecursion(path string, params *Params, paramInjector func() *Params) (*node, *Params) {
 	// Search a matching node inside node's children.
 	// Char could be indexed?
@@ -305,8 +305,8 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 					// But a handler is not registered :(
 					//
 					// So, lets fallback to wildcard node...
-					//// No need to perform nil check for handler and paramKeys here
-					//// since a wildcard node must always have a handler and paramKeys.
+					// 	No need to perform <nil> check for handler and paramKeys here
+					// 	since a wildcard node must always have a handler and paramKeys.
 					//
 					// Dead end #2
 					if child.wildcard != nil {
@@ -360,8 +360,8 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 
 	// No luck with param node :/
 	// Lets fallback to wildcard node.
-	//// No need to perform nil check for handler and paramKeys here
-	//// since a wildcard node must always have a handler and paramKeys.
+	//	No need to perform <nil> check for handler and paramKeys here
+	// 	since a wildcard node must always have a handler and paramKeys.
 	//
 	// Dead end #4
 	if n.wildcard != nil {

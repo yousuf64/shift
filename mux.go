@@ -13,6 +13,10 @@ type multiplexer interface {
 	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *Params, matchedPath string)
 }
 
+// radixMux can store both static and param routes.
+// It maps all the routes on a radix tree.
+//
+// It is recommended to use this multiplexer only when all the routes are param routes.
 type radixMux struct {
 	tree       *node
 	paramsPool *sync.Pool
@@ -28,12 +32,13 @@ func newRadixMux() *radixMux {
 }
 
 func (mux *radixMux) add(path string, isStatic bool, handler HandlerFunc) {
+	// Static routes doesn't need to worry about releasing Params.
 	if isStatic {
 		mux.tree.insert(path, handler)
 		return
 	}
 
-	// Wrap handler to put Params obj back to the pool after handler execution.
+	// Wrap request handler by the release params handler. So that Params object is put back to the pool for reuse.
 	vc := mux.tree.insert(path, releaseParamsHandler(mux.paramsPool, handler))
 
 	if mux.paramsPool.New == nil || vc > mux.maxParams {
@@ -44,8 +49,9 @@ func (mux *radixMux) add(path string, isStatic bool, handler HandlerFunc) {
 	}
 }
 
-// releaseParamsHandler releases the handler's params object into the sync.Pool after execution.
-// Here the downside is, if panics are not recovered in the chain, Params won't get released to the pool.
+// releaseParamsHandler releases the request handler's Params object into the sync.Pool after execution.
+// Here the downside is, if panics are not recovered in the chain, this wrapper won't get executed.
+// Therefore, Params won't get released to the pool.
 func releaseParamsHandler(pool *sync.Pool, handler HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
 		err = handler(w, r, route)
@@ -81,7 +87,7 @@ func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerF
 	})
 
 	if n != nil && n.handler != nil {
-		// When params obj is not required, just release it to the pool and return a nil.
+		// When Params object is not required, release it to the pool and return a nil.
 		if !withParams && ps != nil {
 			ps.reset()
 			mux.paramsPool.Put(ps)
@@ -94,6 +100,12 @@ func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerF
 	return nil, nil, ""
 }
 
+// staticMux can store only static routes.
+// It maps the routes' request handlers on a builtin map.
+// It also maps route length -> route paths in the byLength matrix.
+// Which is useful for membership check and case-insensitive search.
+//
+// Only use this multiplexer only when all the routes are static routes.
 type staticMux struct {
 	routes   map[string]HandlerFunc
 	sizePlot [][]string // Size -> Paths. eg:. 4 (Size) -> /foo, /bar (Paths)
@@ -144,8 +156,8 @@ func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Pa
 		return nil, nil, ""
 	}
 
-	// Retrieve all the paths with the path's length.
-	if keys := mux.sizePlot[len(path)]; len(keys) > 0 {
+	// Retrieve all the paths with the provided path's length.
+	if keys := mux.byLength[len(path)]; len(keys) > 0 {
 		for _, key := range keys {
 			// Find the matching path.
 			if lng := longestPrefixCaseInsensitive(key, path); lng == len(path) {
@@ -157,6 +169,10 @@ func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Pa
 	return nil, nil, ""
 }
 
+// hybridMux can store both static and param routes.
+// It maps static routes on a staticMux and param routes on a radixMux.
+//
+// It is recommended to use this multiplexer when having both static and param routes.
 type hybridMux struct {
 	static *staticMux
 	radix  *radixMux

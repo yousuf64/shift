@@ -2,11 +2,19 @@ package shift
 
 import "net/http"
 
+// Route provides route information.
+// Route.Params is always non-nil, so it's not necessary to perform a <nil> check.
+//
+// When passing Route to a goroutine, make to sure pass a copy (use Copy method)
+// instead of the original Route object. The reason being Route.Params is pooled into a sync.Pool when the
+// request is completed.
 type Route struct {
 	Params   *Params
 	Template string
 }
 
+// Copy returns a copy of the Route.
+// It calls Params.Copy implicitly to copy the underlying Params object.
 func (r Route) Copy() Route {
 	return Route{
 		Params:   r.Params.Copy(),

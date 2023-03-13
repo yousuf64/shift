@@ -8,6 +8,7 @@ type routeLog struct {
 	handler HandlerFunc
 }
 
+// Core provides methods to register routes.
 type Core struct {
 	base string
 	logs *[]routeLog
@@ -16,6 +17,7 @@ type Core struct {
 
 // Group groups routes together at the given path with a group-scoped middleware stack inherited from the parent middleware stack.
 // It provides the opportunity to maintain groups of routes in different files using the func(g *Group) func signature.
+//
 // It is also possible to nest groups within groups.
 func (c *Core) Group(path string, f func(g *Group)) {
 	stack := make([]MiddlewareFunc, len(c.mws), len(c.mws))
@@ -30,7 +32,7 @@ func (c *Core) Group(path string, f func(g *Group)) {
 
 // With returns an instance attaching middlewares to the middleware stack inherited from the parent middleware stack.
 // It's useful for registering middlewares for a specific Group or a route.
-// To use a net/http idiomatic middleware, wrap the middleware using the MiddlewareAdapter.
+// To use a net/http idiomatic middleware, wrap the middleware using the HTTPMiddlewareFunc.
 func (c *Core) With(middlewares ...MiddlewareFunc) *Core {
 	stack := make([]MiddlewareFunc, len(c.mws), len(c.mws)+len(middlewares))
 	copy(stack, c.mws)

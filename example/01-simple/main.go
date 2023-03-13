@@ -10,7 +10,7 @@ func main() {
 	r := shift.New()
 	// Static route.
 	r.GET("/", func(w http.ResponseWriter, r *http.Request, route shift.Route) error {
-		_, err := w.Write([]byte("hello from ape"))
+		_, err := w.Write([]byte("hello from shift"))
 		return err
 	})
 	// Param route.

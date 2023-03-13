@@ -7,9 +7,9 @@ import (
 )
 
 type Server struct {
-	muxes       [9]multiplexer         // Muxes for default http methods.
-	muxIndices  []int                  // Indices of non-nil muxes.
-	customMuxes map[string]multiplexer // Muxes for custom http methods.
+	muxes       [9]multiplexer         // Muxes for default HTTP methods.
+	muxIndices  []int                  // Indices of non-nil muxes. This index is useful to skip <nil> muxes.
+	customMuxes map[string]multiplexer // Muxes for custom HTTP methods.
 	config      *Config
 }
 
@@ -38,7 +38,9 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler, ps, template := mux.find(path)
 	if handler != nil {
 		if ps == nil {
-			ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
+			// Replace with immutable empty params object.
+			// This is to ensure Route.Params is never <nil> in the request handler.
+			ps = emptyParams
 		}
 
 		_ = handler(w, r, Route{
@@ -66,7 +68,9 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			case behaviorExecute:
 				if ps == nil {
-					ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
+					// Replace with immutable empty params object.
+					// This is to ensure Route.Params is never <nil> in the request handler.
+					ps = emptyParams
 				}
 				r.URL.Path = clean
 				_ = handler(w, r, Route{
@@ -90,7 +94,9 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			case behaviorExecute:
 				if ps == nil {
-					ps = emptyParams // Replace with immutable empty params object. Safe for concurrent use.
+					// Replace with immutable empty params object.
+					// This is to ensure Route.Params is never <nil> in the request handler.
+					ps = emptyParams
 				}
 				r.URL.Path = matchedPath
 				_ = handler(w, r, Route{

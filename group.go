@@ -2,6 +2,7 @@ package shift
 
 type core = Core
 
+// Group builds on top of Core and provides additional Group specific methods.
 type Group struct {
 	core
 }
@@ -14,7 +15,7 @@ type Group struct {
 //
 // Alternatively, Router.With() can be used to register middlewares for a whole group or a specific route.
 //
-// To use a net/http idiomatic middleware, wrap the middleware in the MiddlewareAdapter.
+// To use a net/http idiomatic middleware, wrap the middleware in the HTTPMiddlewareFunc.
 func (g *Group) Use(middlewares ...MiddlewareFunc) {
 	g.mws = append(g.mws, middlewares...)
 }

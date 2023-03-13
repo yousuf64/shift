@@ -35,6 +35,7 @@ var defaultConfig = &Config{
 
 type group = Group
 
+// Router builds on top of Group and provides additional Router specific methods.
 type Router struct {
 	group
 
