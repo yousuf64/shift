@@ -14,23 +14,39 @@ func (r Route) Copy() Route {
 	}
 }
 
+// HandlerFunc is an extension of the http.HandlerFunc signature taking a third parameter to provide route information
+// and returns an error to ease global error handling in the middleware stack.
 type HandlerFunc func(w http.ResponseWriter, r *http.Request, route Route) error
 
+// MiddlewareFunc takes a HandlerFunc and returns a HandlerFunc which can call the provided HandlerFunc.
+// This design is useful for chaining handlers and building the middleware stack.
 type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 
-// HandlerAdapter allows to use an idiomatic http.HandlerFunc in place of a HandlerFunc.
-// To retrieve Route information, use the RouteContext middleware and RouteOf func.
-func HandlerAdapter(handler http.HandlerFunc) HandlerFunc {
+// HTTPHandlerFunc allows to use an idiomatic http.HandlerFunc in place of a HandlerFunc.
+// To retrieve Route information,
+//
+// 1. Use RouteContext middleware to pack Route information into the http.Request context.
+//
+//	router.Use(ape.RouteContext())
+//
+// 2. Use RouteOf func to unpack from the http.Request context.
+//
+//	func(w http.ResponseWriter, r *http.Request) error {
+//		route := RouteOf(r.Context())
+//		route.Params()
+//		...
+//	}
+func HTTPHandlerFunc(handler http.HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, route Route) error {
 		handler.ServeHTTP(w, r)
 		return nil
 	}
 }
 
-// MiddlewareAdapter allows to use an idiomatic middleware function
+// HTTPMiddlewareFunc allows to use an idiomatic middleware function
 // 'func(next http.Handler) http.Handler' in place of a MiddlewareFunc.
 // To retrieve Route information, use the RouteContext middleware and RouteOf func.
-func MiddlewareAdapter(mw func(next http.Handler) http.Handler) MiddlewareFunc {
+func HTTPMiddlewareFunc(mw func(next http.Handler) http.Handler) MiddlewareFunc {
 	return func(next HandlerFunc) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
 			mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
