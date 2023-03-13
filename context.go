@@ -8,6 +8,15 @@ import (
 
 var ctxKey uint8
 
+// routeCtx embeds and implements context.Context.
+// It is used to wrap Route object within a context.Context interface.
+//
+// When pooling routeCtx in a sync.Pool, make sure to reset the object before putting back to the pool.
+//
+//	pool := sync.Pool{...}
+//	ctx = ape.WithRoute(ctx, route)
+//	ctx.reset()
+//	pool.Put(ctx)
 type routeCtx struct {
 	context.Context
 	Route
@@ -20,12 +29,14 @@ func (ctx *routeCtx) Value(key any) any {
 	return ctx.Context.Value(key)
 }
 
+// reset resets the routeCtx values to zero values.
 func (ctx *routeCtx) reset() {
 	ctx.Context = nil
 	ctx.Route.Params = nil
 	ctx.Route.Template = ""
 }
 
+// emptyRoute is a Route object with emptyParams and empty Template value.
 var emptyRoute = Route{
 	Params:   emptyParams,
 	Template: "",
