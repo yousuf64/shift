@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/yousuf64/go-shift"
+	"github.com/yousuf64/shift"
 	"net/http"
 )
 

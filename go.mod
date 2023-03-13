@@ -1,3 +1,3 @@
-module github.com/yousuf64/go-shift
+module github.com/yousuf64/shift
 
 go 1.19

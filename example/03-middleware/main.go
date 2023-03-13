@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/yousuf64/go-shift"
+	"github.com/yousuf64/shift"
 	"log"
 	"net/http"
 	"strconv"
