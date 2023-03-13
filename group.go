@@ -1,4 +1,4 @@
-package ape
+package shift
 
 type core = Core
 
