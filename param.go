@@ -53,8 +53,8 @@ func (p *Params) reset() {
 // Get retrieves the value associated with the provided key.
 func (p *Params) Get(key string) string {
 	if p.keys != nil {
-		for i, key := range *p.keys {
-			if key == k {
+		for i, k := range *p.keys {
+			if k == key {
 				return p.values[i]
 			}
 		}
@@ -66,7 +66,7 @@ func (p *Params) Get(key string) string {
 func (p *Params) ForEach(fn func(k, v string) bool) {
 	if p.keys != nil {
 		for i := len(*p.keys) - 1; i >= 0; i-- {
-			f((*p.keys)[i], p.values[i])
+			fn((*p.keys)[i], p.values[i])
 		}
 	}
 }

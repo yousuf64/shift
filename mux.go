@@ -108,13 +108,13 @@ func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerF
 // Only use this multiplexer only when all the routes are static routes.
 type staticMux struct {
 	routes   map[string]HandlerFunc
-	sizePlot [][]string // Size -> Paths. eg:. 4 (Size) -> /foo, /bar (Paths)
+	byLength [][]string // route length -> route paths. Example: 4 (Length) -> /foo, /bar (Paths)
 }
 
 func newStaticMux() *staticMux {
 	return &staticMux{
 		routes:   map[string]HandlerFunc{},
-		sizePlot: make([][]string, 5),
+		byLength: make([][]string, 0),
 	}
 }
 
@@ -125,24 +125,24 @@ func (mux *staticMux) add(path string, isStatic bool, handler HandlerFunc) {
 
 	scanPath(path)
 
-	if len(path) >= len(mux.sizePlot) {
+	if len(path) >= len(mux.byLength) {
 		// Grow slice.
-		mux.sizePlot = append(mux.sizePlot, make([][]string, len(path)-len(mux.sizePlot)+1)...)
+		mux.byLength = append(mux.byLength, make([][]string, len(path)-len(mux.byLength)+1)...)
 	}
 
 	if _, ok := mux.routes[path]; ok {
 		panic(fmt.Sprintf("route %s already registered", path))
 	}
 	mux.routes[path] = handler
-	mux.sizePlot[len(path)] = append(mux.sizePlot[len(path)], path)
+	mux.byLength[len(path)] = append(mux.byLength[len(path)], path)
 }
 
 func (mux *staticMux) find(path string) (HandlerFunc, *Params, string) {
-	if len(path) >= len(mux.sizePlot) {
+	if len(path) >= len(mux.byLength) {
 		return nil, nil, ""
 	}
 
-	if len(mux.sizePlot[len(path)]) == 0 {
+	if len(mux.byLength[len(path)]) == 0 {
 		// Found no paths with the size.
 		return nil, nil, ""
 	}
@@ -152,14 +152,14 @@ func (mux *staticMux) find(path string) (HandlerFunc, *Params, string) {
 }
 
 func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Params, string) {
-	if len(path) >= len(mux.sizePlot) {
+	if len(path) >= len(mux.byLength) {
 		return nil, nil, ""
 	}
 
 	// Retrieve all the paths with the provided path's length.
 	if keys := mux.byLength[len(path)]; len(keys) > 0 {
 		for _, key := range keys {
-			// Find the matching path.
+			// Find a matching path.
 			if lng := longestPrefixCaseInsensitive(key, path); lng == len(path) {
 				return mux.routes[key], nil, key
 			}

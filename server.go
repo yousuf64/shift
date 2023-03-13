@@ -117,8 +117,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (svr *Server) populateRoutes(methods map[string]*methodInfo) {
-	for meth, info := range methods {
+func (svr *Server) populateRoutes(byMethods map[string]*methodInfo) {
+	for method, info := range byMethods {
 		var mux multiplexer
 
 		total := len(info.logs) // Total routes in the method.
@@ -139,7 +139,7 @@ func (svr *Server) populateRoutes(methods map[string]*methodInfo) {
 		}
 
 		// Store mux.
-		if idx := methodIndex(meth); idx >= 0 {
+		if idx := methodIndex(method); idx >= 0 {
 			svr.muxes[idx] = mux
 
 			// Store indices of active muxes in ascending order.
@@ -151,7 +151,7 @@ func (svr *Server) populateRoutes(methods map[string]*methodInfo) {
 			if svr.customMuxes == nil {
 				svr.customMuxes = make(map[string]multiplexer)
 			}
-			svr.customMuxes[meth] = mux
+			svr.customMuxes[method] = mux
 		}
 	}
 

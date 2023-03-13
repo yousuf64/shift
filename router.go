@@ -170,14 +170,14 @@ func (r *Router) Serve() *Server {
 		r.config,
 	}
 
-	methods := groupLogsByMethods(*r.logs)
-	svr.populateRoutes(methods)
+	byMethods := groupLogsByMethods(*r.logs)
+	svr.populateRoutes(byMethods)
 
 	return svr
 }
 
-func groupLogsByMethods(logs []routeLog) (methodInfoMap map[string]*methodInfo) {
-	methodInfoMap = map[string]*methodInfo{}
+func groupLogsByMethods(logs []routeLog) (byMethods map[string]*methodInfo) {
+	byMethods = map[string]*methodInfo{}
 	var anyRoutes []routeLog
 
 	for _, log := range logs {
@@ -186,13 +186,13 @@ func groupLogsByMethods(logs []routeLog) (methodInfoMap map[string]*methodInfo) 
 			continue
 		}
 
-		info, ok := methodInfoMap[log.method]
+		info, ok := byMethods[log.method]
 		if !ok {
 			info = &methodInfo{
 				staticRoutes: 0,
 				logs:         nil,
 			}
-			methodInfoMap[log.method] = info
+			byMethods[log.method] = info
 		}
 
 		static := isStatic(log.path)
@@ -211,8 +211,8 @@ func groupLogsByMethods(logs []routeLog) (methodInfoMap map[string]*methodInfo) 
 	if len(anyRoutes) > 0 {
 		// Populate with all the built-in methods.
 		for _, method := range builtInMethods {
-			if _, ok := methodInfoMap[method]; !ok {
-				methodInfoMap[method] = &methodInfo{
+			if _, ok := byMethods[method]; !ok {
+				byMethods[method] = &methodInfo{
 					staticRoutes: 0,
 					logs:         nil,
 				}
@@ -222,7 +222,7 @@ func groupLogsByMethods(logs []routeLog) (methodInfoMap map[string]*methodInfo) 
 		for _, route := range anyRoutes {
 			static := isStatic(route.path)
 
-			for method, info := range methodInfoMap {
+			for method, info := range byMethods {
 				info.logs = append(info.logs, routeInfo{
 					method:  method,
 					path:    route.path,
