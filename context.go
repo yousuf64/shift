@@ -31,13 +31,33 @@ var emptyRoute = Route{
 	Template: "",
 }
 
-// RouteOf unpacks Route information from the http.Request context.
-// Use RouteContext middleware in the middleware stack to pack Route information into http.Request context.
-func RouteOf(r *http.Request) Route {
-	if c, ok := r.Context().Value(&ctxKey).(*routeCtx); ok {
-		return c.Route
+// WithRoute returns a context.Context wrapping the provided context.Context and the Route.
+func WithRoute(ctx context.Context, route Route) context.Context {
+	return &routeCtx{ctx, route}
+}
+
+// FromContext unpacks Route from the provided context.Context.
+// Returns false as the second return value if a Route was not found within the provided context.Context.
+// Returned Route.Params can never be <nil> even if a Route is not found as it replaces <nil> Route.Params object
+// with an empty Params object.
+func FromContext(ctx context.Context) (Route, bool) {
+	if rctx, ok := ctx.Value(&ctxKey).(*routeCtx); ok {
+		return rctx.Route, true
 	}
-	return emptyRoute
+	return emptyRoute, false
+}
+
+// RouteOf unpacks Route information from the provided http.Request context.
+// Returns an empty route if a Route was not found within the provided http.Request context.
+// Returned Route.Params is always non-nil, so it's not necessary to perform a <nil> check.
+// Use RouteContext middleware in the middleware stack to pack Route information into http.Request context.
+//
+// It is a shorthand for,
+//
+//	route, _ := FromContext(r.Context())
+func RouteOf(r *http.Request) Route {
+	route, _ := FromContext(r.Context())
+	return route
 }
 
 // ctxPool pools routeCtx objects for reuse.
