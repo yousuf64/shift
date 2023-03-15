@@ -1,6 +1,7 @@
-# shift
+<img src="https://user-images.githubusercontent.com/77720223/225369425-7bdeb42b-41c1-4062-8e03-75b7ed7f923a.png" width="160px" title="Shift logo" alt="Shift logo" style="margin-top: 20px">
 
-`shift` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
+`shift` is a lightweight blistering fast HTTP router for Go. It's designed with simplicity and performance in mind. 
+It uses radix trees and hash maps with lots of indexing under the hood to achieve high performance.
 
 ## Benchmarks
 Benchmark suite: https://github.com/yousuf64/http-routing-benchmark
@@ -57,8 +58,8 @@ go get -u github.com/yousuf64/shift
   * Case-insensitive route matching
   * Trailing slash (with/without) route matching
   * Path autocorrection
-  * No route conflict/overlapping limitations (`/posts/:id` and `/posts/export` is allowed)
-  * Allows different param names over the same path (`/users/:name` and `/users/:id/delete` is valid)
+  * No route conflict/overlapping limitations (`/posts/:id` and `/posts/export` can exist together)
+  * Allows different param names over the same path (`/users/:name` and `/users/:id/delete` can exist without param name conflicts)
   * Mid-segment params (`/v:version/jobs`, `/stream_*url`)
 * Lightweight
 * Zero external dependencies
@@ -78,19 +79,25 @@ func main() {
   // Router
   router := shift.New()
 
-  // Middleware
+  // Attach middleware
   router.Use(shift.Recover())
 
-  // Routes
-  router.GET("/", greet)
+  // Define routes
+  router.GET("/", IndexHandler)
+  router.POST("/", CreateUserHandler)
 
   // Run
   fmt.Println(http.ListenAndServe(":6464", router.Serve()))
 }
 
-// Handler
-func greet(w http.ResponseWriter, r *http.Request, route shift.Route) error {
+// Request handlers
+func IndexHandler(w http.ResponseWriter, r *http.Request, route shift.Route) error {
   _, err := w.Write([]byte("hello!"))
+  return err
+}
+
+func CreateUserHandler(w http.ResponseWriter, r *http.Request, route shift.Route) error {
+  _, err := w.Write([]byte("user created!"))
   return err
 }
 
@@ -154,22 +161,24 @@ import (
 func main() {
   // ...
 
-  router.GET('/', shift.HTTPHandlerFunc(hello))
+  router.GET('/', shift.HTTPHandlerFunc(HelloHandler))
 
   // ...
 }
 
-func hello(w http.ResponseWriter, r *http.Request) {
+func HelloHandler(w http.ResponseWriter, r *http.Request) {
   _, _ = w.Write([]byte("hello world!"))
 }
 ```
 
-To retrieve Route information from a `net/http` handler, use the `RouteContext` middleware and `RouteOf` function.
+To retrieve Route information from a `net/http` request handler,
+1. Attach the `RouteContext` middleware to the router, which would pack route information into `http.Request` context.
+2. Use `RouteOf()` function in the request handler to retrieve `Route` object from the `http.Request` context.
 ```go
 router.Use(shift.RouteContext())
-router.GET('/hello/:name', shift.HTTPHandlerFunc(hello))
+router.GET('/hello/:name', shift.HTTPHandlerFunc(HelloUserHandler))
 
-func hello(w http.ResponseWriter, r *http.Request) {
+func HelloUserHandler(w http.ResponseWriter, r *http.Request) {
     route := shift.RouteOf(r)
     route.Template // /hello/:name 
     route.Params.Get('name') // saul
@@ -177,18 +186,18 @@ func hello(w http.ResponseWriter, r *http.Request) {
 ```
 
 ## Middlewares
-`shift` supports both `shift` and `net/http` style middlewares. Which means you can use any stdlib compatible middlewares.
+`shift` supports both `shift` and `net/http` style middlewares. Which means you can attach any stdlib compatible middleware.
 
 * `shift` middleware signature: `func (next shift.HandlerFunc) shift.HandlerFunc`
 * `net/http` middleware signature: `func (next http.Handler) http.Handler`
 
-Use `HTTPMiddlewareFunc` to bind `net/http` middleware.
+Use `HTTPMiddlewareFunc` to attach `net/http` middleware.
 
-To attach a middleware to the current scope, use `router.Use()`,
+To attach a middleware to the current scope, use `Router.Use()`,
 ```go
 func main() {
     // ...
-    router.Use(AuthMiddleware, shift.HTTPMiddlewareFunc(AnotherMiddleware))
+    router.Use(AuthMiddleware, shift.HTTPMiddlewareFunc(NetHTTPMiddleware))
     router.GET('/', hello)
     router.POST('/users', createUser)
     // ...
@@ -202,14 +211,15 @@ func AuthMiddleware(next shift.HandlerFunc) shift.HandlerFunc {
     }
 }
 
-func AnotherMiddleware(next http.Handler) http.Handler 
+func NetHTTPMiddleware(next http.Handler) http.Handler 
 // ...
 
 ```
-To attach a middleware to a specific request handler or a group, use `router.With()`,
+If you want to attach a middleware only to a specific route or a group, use `Router.With()` and pass in the middlewares.
+You must chain it with a route or a group for it to take any effect.
 ```go
-router.With(AuthMiddleware, shift.MiddlewareAdapter(AnotherMiddleware)).GET("/", hello)
-router.With(AuthMiddleware).Group("/v1", v1Group)
+router.With(AuthMiddleware, shift.MiddlewareAdapter(AnotherMiddleware)).GET("/", Hello)
+router.With(AuthMiddleware).Group("/v1", V1Group)
 ```
 
 ### Built-in Middlewares
@@ -248,24 +258,24 @@ router.GET('/bar/', barHandler) // Matches /bar/, /Bar/, /bAr/, /BAR, /baR/, and
 
 Both `UseTrailingSlashMatch` and `UseSanitizeURLMatch` expects an `ActionOption` which provides the routing behavior for the fallback handler, `shift` provides three behavior providers:
 * `WithExecute()` - Executes the request handler of the correct route.
-* `WithRedirect()` - Return HTTP 304 (Moved Permanently) status and writes the correct path as the redirect url to the header.
+* `WithRedirect()` - Returns HTTP 304 (Moved Permanently) status with a redirect to correct URL in the header.
 * `WithRedirectCustom(statusCode)` - Is same as `WithRedirect`, except it writes the provided status code (should be in range 3XX).
 
 ## Route Information
-In a `shift` style request handler, you can access route information such as the route template and route params directly through the `route` argument.
+In a `shift` style request handler, access route information such as the route template and route params directly through the `Route` argument.
 
-In a `net/http` style request handler, you'd have to use the `RouteContext` middleware and within the request handler, use `RouteOf` to retrieve the `route` object.
+In a `net/http` style request handler, attach the `RouteContext` middleware and within the request handler, use `RouteOf()` function to retrieve the `Route` object.
 
 ### Using Route and Params in GoRoutines
 When using `Route` or `Params` object in a Go Routine, make sure to get a clone using `Copy()` which is available for both the objects.
 ```go
-func handler(w http.ResponseWriter, r *http.Request, route shift.Route) error {
-	go fooWorker(route.Copy()) // Copies the whole Route object along with the internal Params object
-	go barWorker(route.Params.Copy()) // Copies only the Params object
+func WorkerHandler(w http.ResponseWriter, r *http.Request, route shift.Route) error {
+	go FooWorker(route.Copy()) // Copies the whole Route object along with the internal Params object.
+	go BarWorker(route.Params.Copy()) // Copies only the Params object.
 	return nil
 }
 
-func fooWorker(route shift.Route) {}
+func FooWorker(route shift.Route) {}
 
-func barWorker(ps shift.Params) {}
+func BarWorker(ps shift.Params) {}
 ```
