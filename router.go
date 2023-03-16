@@ -15,7 +15,7 @@ const (
 
 type Config struct {
 	trailingSlashMatch     *actionConfig
-	sanitizeUrlMatch       *actionConfig
+	pathCorrectionMatch    *actionConfig
 	notFoundHandler        func(w http.ResponseWriter, r *http.Request)
 	handleMethodNotAllowed bool
 }
@@ -25,7 +25,7 @@ var defaultConfig = &Config{
 		behavior: behaviorSkip,
 		code:     0,
 	},
-	sanitizeUrlMatch: &actionConfig{
+	pathCorrectionMatch: &actionConfig{
 		behavior: behaviorSkip,
 		code:     0,
 	},
@@ -54,7 +54,7 @@ func New() *Router {
 			},
 			&Config{
 				defaultConfig.trailingSlashMatch,
-				defaultConfig.sanitizeUrlMatch,
+				defaultConfig.pathCorrectionMatch,
 				defaultConfig.notFoundHandler,
 				defaultConfig.handleMethodNotAllowed,
 			},
@@ -69,10 +69,10 @@ func (r *Router) UseTrailingSlashMatch(opt ActionOption) {
 	opt.apply(r.config.trailingSlashMatch)
 }
 
-// UseSanitizeURLMatch when enabled, performs a case-insensitive search after sanitizing the URL when an exact match has not been found.
+// UsePathCorrectionMatch when enabled, performs a case-insensitive search after correcting the URL when an exact match has not been found.
 // Use WithExecute, WithRedirect or WithRedirectCustom to set the routing behavior.
-func (r *Router) UseSanitizeURLMatch(opt ActionOption) {
-	opt.apply(r.config.sanitizeUrlMatch)
+func (r *Router) UsePathCorrectionMatch(opt ActionOption) {
+	opt.apply(r.config.pathCorrectionMatch)
 }
 
 // UseMethodNotAllowedHandler responds with HTTP status 405 and a list of registered HTTP methods for the path in the 'Allow' header

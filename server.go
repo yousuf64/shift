@@ -82,15 +82,15 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sanitize the path and do a case-insensitive search...
-	if svr.config.sanitizeUrlMatch.behavior != behaviorSkip {
+	// Correct the path and do a case-insensitive search...
+	if svr.config.pathCorrectionMatch.behavior != behaviorSkip {
 		clean := cleanPath(path)
-		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.sanitizeUrlMatch.behavior == behaviorExecute)
+		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.pathCorrectionMatch.behavior == behaviorExecute)
 		if handler != nil {
-			switch svr.config.sanitizeUrlMatch.behavior {
+			switch svr.config.pathCorrectionMatch.behavior {
 			case behaviorRedirect:
 				r.URL.Path = matchedPath
-				http.Redirect(w, r, r.URL.String(), svr.config.sanitizeUrlMatch.code)
+				http.Redirect(w, r, r.URL.String(), svr.config.pathCorrectionMatch.code)
 				return
 			case behaviorExecute:
 				if ps == nil {

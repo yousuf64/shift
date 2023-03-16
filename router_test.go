@@ -638,7 +638,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 
 func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(WithExecute())
+	r.UsePathCorrectionMatch(WithExecute())
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -756,7 +756,7 @@ func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 
 func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(WithExecute())
+	r.UsePathCorrectionMatch(WithExecute())
 
 	f := func(path string) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {
@@ -1389,7 +1389,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
 
 func BenchmarkRouter_ServeHTTP_CaseInsensitive(b *testing.B) {
 	r := New()
-	r.UseSanitizeURLMatch(WithRedirect())
+	r.UsePathCorrectionMatch(WithRedirect())
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -2033,9 +2033,9 @@ func TestRouter_TrailingSlash_WithRedirectCustom(t *testing.T) {
 	}
 }
 
-func TestRouter_SanitizeURL_WithExecute(t *testing.T) {
+func TestRouter_PathCorrection_WithExecute(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(WithExecute())
+	r.UsePathCorrectionMatch(WithExecute())
 
 	r.GET("/abc/def", fakeHandler())
 	r.GET("/abc/def/ghi", fakeHandler())
@@ -2060,9 +2060,9 @@ func TestRouter_SanitizeURL_WithExecute(t *testing.T) {
 			fmt.Sprintf("%s > expected: %d, got: %d", req.URL.String(), http.StatusOK, rw.Code))
 	}
 }
-func TestRouter_SanitizeURL_WithRedirect(t *testing.T) {
+func TestRouter_PathCorrection_WithRedirect(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(WithRedirect())
+	r.UsePathCorrectionMatch(WithRedirect())
 
 	r.GET("/abc/def", fakeHandler())
 	r.GET("/abc/def/ghi", fakeHandler())
@@ -2088,9 +2088,9 @@ func TestRouter_SanitizeURL_WithRedirect(t *testing.T) {
 	}
 }
 
-func TestRouter_SanitizeURL_WithRedirectCustom(t *testing.T) {
+func TestRouter_PathCorrection_WithRedirectCustom(t *testing.T) {
 	r := New()
-	r.UseSanitizeURLMatch(WithRedirectCustom(364))
+	r.UsePathCorrectionMatch(WithRedirectCustom(364))
 
 	r.GET("/abc/def", fakeHandler())
 	r.GET("/abc/def/ghi", fakeHandler())
