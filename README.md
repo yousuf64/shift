@@ -19,11 +19,14 @@ The benchmark suite is also available as a [GitHub Action](https://github.com/yo
 
 
 Comparison between Shift, Gin and Echo as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
+
+Benchmark system specifications:
+* 12th Gen Intel Core i7-1265U vPro (12 MB cache, 10 cores, up to 4.80 GHz Turbo)
+* 32 GB (2x 16 GB), DDR4-3200
+* Windows 10 Enterprise 22H2
+* Go 1.19.4 (windows/amd64)
+
 ```
-goos: windows
-goarch: amd64
-pkg: http-routing-benchmark
-cpu: 12th Gen Intel(R) Core(TM) i7-1265U
 BenchmarkShift_CaseInsensitiveAll-12             1750636               635.6 ns/op             0 B/op          0 allocs/op
 BenchmarkGin_CaseInsensitiveAll-12               1000000              1066 ns/op               0 B/op          0 allocs/op
 BenchmarkShift_GithubAll-12                        79966             14575 ns/op               0 B/op          0 allocs/op
