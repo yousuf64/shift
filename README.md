@@ -17,7 +17,7 @@ Shift is benchmarked against Gin and Echo in the [benchmark suite](https://githu
 
 The benchmark suite is also available as a [GitHub Action](https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml).
 
-
+### Results
 Comparison between Shift, Gin and Echo as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
 
 Benchmark system specifications:
