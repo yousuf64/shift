@@ -1,19 +1,19 @@
-<img src="https://user-images.githubusercontent.com/77720223/225369425-7bdeb42b-41c1-4062-8e03-75b7ed7f923a.png" width="165px" title="Shift logo" alt="Shift logo" style="margin-top: 30px">
+# shift
 
-`shift` is a high-performance HTTP router built for Go, with a focus on speed, simplicity, and ease-of-use.
+High-performance HTTP router for Go, with a focus on speed, simplicity, and ease-of-use.
 
-At the core of its performance, `shift` uses a powerful combination of radix trees and hash maps, setting the standard for lightning-fast routing.
+At the core of its performance, Shift uses a powerful combination of radix trees and hash maps, setting the standard for lightning-fast routing.
 
-Why `shift`?
+Why Shift?
 
-* `shift` is faster than other mainstream HTTP routers. 
-* Unlike other fast routers, `shift` strives to remain idiomatic and close to the standard library as much as possible.
+* Shift is faster than other mainstream HTTP routers. 
+* Unlike other fast routers, Shift strives to remain idiomatic and close to the standard library as much as possible.
 * Its primary focus is on routing requests quickly and efficiently, without attempting to become a full-fledged framework.
-* Despite its simplicity, `shift` offers powerful routing capabilities.
-* `shift` is compatible with `net/http` request handlers and middlewares.
+* Despite its simplicity, Shift offers powerful routing capabilities.
+* Shift is compatible with `net/http` request handlers and middlewares.
 
 ## Benchmarks
-`shift` is benchmarked against `gin` and `echo` in the [benchmark suite](https://github.com/yousuf64/http-routing-benchmark/).
+Shift is benchmarked against Gin and Echo in the [benchmark suite](https://github.com/yousuf64/http-routing-benchmark/).
 
 The benchmark suite is also available as a [GitHub Action](https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml).
 
@@ -69,13 +69,13 @@ BenchmarkEcho_StaticAll-12                        106158             10877 ns/op
 * Has zero external dependencies.
 
 ## Install
-To install `shift`, simply run:
+To install Shift, simply run:
 ```
 go get -u github.com/yousuf64/shift
 ```
 
 ## Quick Start
-Using `shift` is easy. Here's a simple example:
+Using Shift is easy. Here's a simple example:
 
 ```go
 package main
@@ -101,7 +101,7 @@ func main() {
 In this example, we create a `shift` router, define a GET route for the root path, and start an HTTP server to listen for incoming requests on port `8080`.
 
 ## Routing System
-`shift` boasts a highly powerful and flexible routing system.
+Shift boasts a highly powerful and flexible routing system.
 ```
 > Pattern: /foo
     /foo              match
@@ -233,9 +233,9 @@ func LoggerMiddleware(next shift.HandlerFunc) shift.HandlerFunc { ... }
 func CORSMiddleware(next shift.HandlerFunc) shift.HandlerFunc { ... }
 ```
 
-Note:
-    * `Router.Use()` can also be used within a group, attaching the middleware to the routes declared within the group after the `Router.Use()` statement.
-    * `HTTPMiddlewareFunc` adapter can be used to attach `net/http` middleware.
+Note: 
+* `Router.Use()` can also be used within a group. It will attach the provided middlewares to the routes declared within the group after the `Router.Use()` statement.
+* `HTTPMiddlewareFunc` adapter can be used to attach `net/http` middleware.
 
 ### Built-in Middlewares
 
@@ -308,7 +308,7 @@ func WorkerHandler(w http.ResponseWriter, r *http.Request, route shift.Route) er
     return nil
 }
 
-func FooWorker(route shift.Route) {}
+func FooWorker(route shift.Route) { ... }
 
-func BarWorker(ps *shift.Params) {}
+func BarWorker(ps *shift.Params) { ... }
 ```
