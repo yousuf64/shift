@@ -44,8 +44,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_ = handler(w, r, Route{
-			Params:   ps,
-			Template: template,
+			Params: ps,
+			Path:   template,
 		})
 		return
 	}
@@ -74,8 +74,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 				r.URL.Path = clean
 				_ = handler(w, r, Route{
-					Params:   ps,
-					Template: template,
+					Params: ps,
+					Path:   template,
 				})
 				return
 			}
@@ -100,8 +100,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 				r.URL.Path = matchedPath
 				_ = handler(w, r, Route{
-					Params:   ps,
-					Template: "",
+					Params: ps,
+					Path:   "",
 				})
 				return
 			}

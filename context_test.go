@@ -8,8 +8,8 @@ import (
 
 func TestContext_FromContext(t *testing.T) {
 	fooRoute := Route{
-		Params:   emptyParams,
-		Template: "/foo",
+		Params: emptyParams,
+		Path:   "/foo",
 	}
 	ctx := WithRoute(context.Background(), fooRoute)
 	route, ok := FromContext(ctx)
@@ -20,8 +20,8 @@ func TestContext_FromContext(t *testing.T) {
 
 func TestContext_RouteOf(t *testing.T) {
 	abcRoute := Route{
-		Params:   nil,
-		Template: "/abc",
+		Params: nil,
+		Path:   "/abc",
 	}
 	request, _ := http.NewRequest("GET", "/abc", nil)
 	ctx := WithRoute(request.Context(), abcRoute)

@@ -182,7 +182,7 @@ router.GET("/hello/:name", shift.HTTPHandlerFunc(HelloUserHandler))
 
 func HelloUserHandler(w http.ResponseWriter, r *http.Request) {
     route := shift.RouteOf(r)
-    _, _ = fmt.Fprintf(w, "Hello, %s 😎 from %s route", route.Params.Get("name"), route.Template)
+    _, _ = fmt.Fprintf(w, "Hello, %s 😎 from %s route", route.Params.Get("name"), route.Path)
     // Writes 'Hello, Max 😎 from /hello/:name route'
 }
 ```
@@ -294,7 +294,7 @@ Both `UseTrailingSlashMatch` and `UsePathCorrectionMatch` expects an `ActionOpti
 * `WithRedirectCustom(statusCode)` - Is same as `WithRedirect`, except it writes the provided status code (should be in range 3XX).
 
 ## Route Information
-In a `shift` style request handler, access route information such as the route template and route params directly through the `Route` argument.
+In a `shift` style request handler, access route information such as the route path and route params directly through the `Route` argument.
 
 In a `net/http` style request handler, attach the `RouteContext` middleware and within the request handler, use `RouteOf()` function to retrieve the `Route` object.
 

@@ -9,16 +9,16 @@ import "net/http"
 // instead of the original Route object. The reason being Route.Params is pooled into a sync.Pool when the
 // request is completed.
 type Route struct {
-	Params   *Params
-	Template string
+	Params *Params
+	Path   string
 }
 
 // Copy returns a copy of the Route.
 // It calls Params.Copy implicitly to copy the underlying Params object.
 func (r Route) Copy() Route {
 	return Route{
-		Params:   r.Params.Copy(),
-		Template: r.Template,
+		Params: r.Params.Copy(),
+		Path:   r.Path,
 	}
 }
 

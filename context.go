@@ -33,13 +33,13 @@ func (ctx *routeCtx) Value(key any) any {
 func (ctx *routeCtx) reset() {
 	ctx.Context = nil
 	ctx.Route.Params = nil
-	ctx.Route.Template = ""
+	ctx.Route.Path = ""
 }
 
-// emptyRoute is a Route object with emptyParams and empty Template value.
+// emptyRoute is a Route object with emptyParams and empty Path value.
 var emptyRoute = Route{
-	Params:   emptyParams,
-	Template: "",
+	Params: emptyParams,
+	Path:   "",
 }
 
 // WithRoute returns a context.Context wrapping the provided context.Context and the Route.
