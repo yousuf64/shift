@@ -312,3 +312,8 @@ func FooWorker(route shift.Route) { ... }
 
 func BarWorker(ps *shift.Params) { ... }
 ```
+
+## License
+Licensed under [MIT License](/LICENSE)
+
+Copyright (c) 2023 Mohammed Yousuf
