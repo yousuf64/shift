@@ -33,4 +33,6 @@ func main() {
 		_, err := w.Write([]byte(fmt.Sprintf("fetched video from %s", route.Params.Get("url"))))
 		return err
 	})
+
+	_ = http.ListenAndServe(":6464", r.Serve())
 }
