@@ -14,8 +14,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-go@v3
+
+    - name: Setup Go ${{ matrix.go }} on ${{ matrix.os }}
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go }}
         cache: true
-    - run: go test ./...
+
+    - name: Test
+      run: go test ./...
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
