@@ -265,7 +265,7 @@ Use `Router.UseNotFoundHandler()` to register a custom not found handler.
 
 ```go
 router.UseNotFoundHandler(func(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(410) // Replies with a 410 error.
+    w.WriteHeader(410) // Replies with a 410 error.
 })
 ```
 
@@ -352,8 +352,8 @@ func FooWorker(route shift.Route) { ... }
 func BarWorker(ps *shift.Params) { ... }
 ```
 
-## Registering to Multiple Methods
-To register a request handler to multiple methods, use `Router.Map()`.
+## Registering to Multiple HTTP Methods
+To register a request handler to multiple HTTP methods, use `Router.Map()`.
 
 ```go
 router := shift.New()
@@ -363,7 +363,7 @@ router.Map([]string{"GET", "POST"}, "/zanzibar", func(w http.ResponseWriter, r *
 })
 ```
 
-This is equivalent to registering the request handler to the path `/zanzibar` by calling both `Router.GET()` and `Router.POST()`.
+This is equivalent to registering a common request handler to the path `/zanzibar` by calling both `Router.GET()` and `Router.POST()`.
 
 ## Registering to a Custom HTTP Method
 You can also use `Router.Map()` to register request handlers to custom HTTP methods.
