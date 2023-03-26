@@ -325,7 +325,7 @@ func BarWorker(ps *shift.Params) { ... }
 
 ## Credits
 * Julien Schmidt for [HttpRouter](https://github.com/julienschmidt/httprouter).
-  * `path.go` is directly taken from this project for path correction.
+  * `path.go` file is directly taken from this project for path correction.
 
 ## License
 Licensed under [MIT License](/LICENSE)
