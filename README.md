@@ -1,7 +1,5 @@
 ## `shift`: high-performance HTTP router for Go
 
----
-
 [![Go Reference](https://pkg.go.dev/badge/github.com/yousuf64/shift.svg)](https://pkg.go.dev/github.com/yousuf64/shift)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yousuf64/shift)](https://goreportcard.com/report/github.com/yousuf64/shift)
 [![codecov](https://codecov.io/gh/yousuf64/shift/branch/main/graph/badge.svg?token=NK2KPJNYVA)](https://codecov.io/gh/yousuf64/shift)
@@ -86,6 +84,7 @@ To install `shift`, simply run:
 ```
 go get -u github.com/yousuf64/shift
 ```
+
 Using `shift` is easy. Here's a simple example:
 
 ```go
@@ -330,6 +329,5 @@ Licensed under [MIT License](/LICENSE)
 Copyright (c) 2023 Mohammed Yousuf
 
 ## Status
-
 `shift` is currently pre-1.0. Therefore, there could be minor breaking changes to stabilize the API before the initial stable release. Please open an issue if you have questions, requests, suggestions for improvements, or concerns.
 It's intended to release 1.0.0 during the first week of April.
