@@ -1,10 +1,20 @@
-# shift
+## `shift`: high-performance HTTP router for Go
+
+---
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/yousuf64/shift.svg)](https://pkg.go.dev/github.com/yousuf64/shift)
+[![Go Report Card](https://goreportcard.com/badge/github.com/yousuf64/shift)](https://goreportcard.com/report/github.com/yousuf64/shift)
+[![codecov](https://codecov.io/gh/yousuf64/shift/branch/main/graph/badge.svg?token=NK2KPJNYVA)](https://codecov.io/gh/yousuf64/shift)
 
 High-performance HTTP router for Go, with a focus on speed, simplicity, and ease-of-use.
 
+```
+go get -u github.com/yousuf64/shift
+```
+
 At the core of its performance, Shift uses a powerful combination of radix trees and hash maps, setting the standard for lightning-fast routing.
 
-Why Shift?
+Why `shift`?
 
 * Shift is faster than other mainstream HTTP routers. 
 * Unlike other fast routers, Shift strives to remain idiomatic and close to the standard library as much as possible.
@@ -13,12 +23,12 @@ Why Shift?
 * Shift is compatible with `net/http` request handlers and middlewares.
 
 ## Benchmarks
-Shift is benchmarked against Gin and Echo in the [benchmark suite](https://github.com/yousuf64/http-routing-benchmark/).
+`shift` is benchmarked against Gin and Echo in the [benchmark suite](https://github.com/yousuf64/http-routing-benchmark/).
 
 The benchmark suite is also available as a [GitHub Action](https://github.com/yousuf64/http-routing-benchmark/actions/workflows/benchmark.yaml).
 
 ### Results
-Comparison between Shift, Gin and Echo as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
+Comparison between `shift`, `gin` and `echo` as of Feb 27, 2023 on Go 1.19.4 (windows/amd64)
 
 Benchmark system specifications:
 * 12th Gen Intel Core i7-1265U vPro (12 MB cache, 10 cores, up to 4.80 GHz Turbo)
@@ -71,14 +81,12 @@ BenchmarkEcho_StaticAll-12                        106158             10877 ns/op
 * Lightweight.
 * Has zero external dependencies.
 
-## Install
-To install Shift, simply run:
+## Quick Start
+To install `shift`, simply run:
 ```
 go get -u github.com/yousuf64/shift
 ```
-
-## Quick Start
-Using Shift is easy. Here's a simple example:
+Using `shift` is easy. Here's a simple example:
 
 ```go
 package main
@@ -104,7 +112,7 @@ func main() {
 In this example, we create a `shift` router, define a GET route for the root path, and start an HTTP server to listen for incoming requests on port `8080`.
 
 ## Routing System
-Shift boasts a highly powerful and flexible routing system.
+`shift` boasts a highly powerful and flexible routing system.
 ```
 > Pattern: /foo
     /foo              match
@@ -320,3 +328,8 @@ func BarWorker(ps *shift.Params) { ... }
 Licensed under [MIT License](/LICENSE)
 
 Copyright (c) 2023 Mohammed Yousuf
+
+## Status
+
+`shift` is currently pre-1.0. Therefore, there could be minor breaking changes to stabilize the API before the initial stable release. Please open an issue if you have questions, requests, suggestions for improvements, or concerns.
+It's intended to release 1.0.0 during the first week of April.
