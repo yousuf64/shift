@@ -351,7 +351,7 @@ func FooWorker(route shift.Route) { ... }
 func BarWorker(ps *shift.Params) { ... }
 ```
 
-## Registering a Handler to Multiple Methods
+## Registering to Multiple Methods
 To register a request handler to multiple methods, use `Router.Map()`.
 
 ```go
@@ -364,8 +364,8 @@ router.Map([]string{"GET", "POST"}, "/zanzibar", func(w http.ResponseWriter, r *
 
 This is equivalent to registering the request handler to the path `/zanzibar` by calling both `Router.GET()` and `Router.POST()`.
 
-## Custom HTTP Method
-You can use `Router.Map()` to register custom HTTP methods as well.
+## Registering to a Custom HTTP Method
+You can also use `Router.Map()` to register request handlers to custom HTTP methods.
 
 ```go
 router := shift.New()
