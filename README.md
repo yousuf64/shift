@@ -257,6 +257,34 @@ Note:
 ### Writing Custom Middleware
 Check out [middleware examples](/example/03-middleware/main.go).
 
+## Not Found Handler
+By default, when a matching route is not found, it replies to the request with an HTTP 404 (Not Found) error. 
+
+Use `Router.UseNotFoundHandler()` to register a custom not found handler.
+
+```go
+router.UseNotFoundHandler(func(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(410) // Replies with a 410 error.
+})
+```
+
+## Method Not Allowed Handler
+With this feature enabled, the router will check for matching routes for other HTTP methods when a matching route is not found.
+If any are found, it replies with an HTTP 405 (Method Not Allowed) status code and includes the allowed methods in the `Allow` header.
+
+Use `Router.UseMethodNotAllowedHandler()` to enable this feature.
+
+```go
+router := shift.New()
+router.UseMethodNotAllowedHandler()
+
+router.GET("/cake", GetCakeHandler)
+router.POST("/cake", PostCakeHandler)
+```
+
+On `PUT /cake` request, since a `PUT` route is not registered for the `/cake` path,
+the router will reply with an HTTP 405 (Method Not Allowed) status code and `GET, POST` in the `Allow` header.
+
 ## Error Handling
 Since `shift` request handlers can return errors, it is easy to handle errors in middleware without cluttering the request handlers.
 This helps to keep the request handlers clean and focused on their primary task.
@@ -322,6 +350,36 @@ func FooWorker(route shift.Route) { ... }
 
 func BarWorker(ps *shift.Params) { ... }
 ```
+
+## Registering a Handler to Multiple Methods
+To register a request handler to multiple methods, use `Router.Map()`.
+
+```go
+router := shift.New()
+router.Map([]string{"GET", "POST"}, "/zanzibar", func(w http.ResponseWriter, r *http.Request, route shift.Route) error {
+    _, err := fmt.Fprintf(w, "👊👊👊")
+    return err
+})
+```
+
+This is equivalent to registering the request handler to the path `/zanzibar` by calling both `Router.GET()` and `Router.POST()`.
+
+## Custom HTTP Method
+You can use `Router.Map()` to register custom HTTP methods as well.
+
+```go
+router := shift.New()
+router.Map([]string{"FOO"}, "/products", func(w http.ResponseWriter, r *http.Request, route shift.Route) error {
+    _, err := fmt.Fprintf(w, "Hello, from %s method 👊", r.Method)
+    return err
+})
+```
+
+ ```shell
+curl --request FOO --url '127.0.0.1:6464/products'
+```
+
+The router will reply `Hello, from FOO method 👊` for the above request.
 
 ## Credits
 * Julien Schmidt for [HttpRouter](https://github.com/julienschmidt/httprouter).
