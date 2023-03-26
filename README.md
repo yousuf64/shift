@@ -10,15 +10,15 @@ High-performance HTTP router for Go, with a focus on speed, simplicity, and ease
 go get -u github.com/yousuf64/shift
 ```
 
-At the core of its performance, Shift uses a powerful combination of radix trees and hash maps, setting the standard for lightning-fast routing.
+At the core of its performance, `shift` uses a powerful combination of radix trees and hash maps, setting the standard for lightning-fast routing.
 
 Why `shift`?
 
-* Shift is faster than other mainstream HTTP routers. 
-* Unlike other fast routers, Shift strives to remain idiomatic and close to the standard library as much as possible.
+* `shift` is faster than other mainstream HTTP routers. 
+* Unlike other fast routers, `shift` strives to remain idiomatic and close to the standard library as much as possible.
 * Its primary focus is on routing requests quickly and efficiently, without attempting to become a full-fledged framework.
-* Despite its simplicity, Shift offers powerful routing capabilities.
-* Shift is compatible with `net/http` request handlers and middlewares.
+* Despite its simplicity, `shift` offers powerful routing capabilities.
+* `shift` is compatible with `net/http` request handlers and middlewares.
 
 ## Benchmarks
 `shift` is benchmarked against Gin and Echo in the [benchmark suite](https://github.com/yousuf64/http-routing-benchmark/).
