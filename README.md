@@ -68,6 +68,7 @@ BenchmarkEcho_StaticAll-12                        106158             10877 ns/op
 * Middleware support.
 * Compatible with `net/http` request handlers and middlewares.
 * Route grouping.
+* Allows declaring custom HTTP methods.
 * Powerful routing system that includes:
     * Route prioritization (Static > Param > Wildcard in that order).
     * Case-insensitive route matching.
