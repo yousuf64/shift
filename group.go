@@ -33,8 +33,8 @@ func (g *Group) Base() string {
 	return g.base
 }
 
-// Routes returns the routes registered within the Group.
-// To retrieve all the routes, call Routes() from the Router.
+// Routes returns the routes registered to the Group.
+// To retrieve all the routes, use Router.Routes().
 func (g *Group) Routes() (routes []RouteInfo) {
 	for _, log := range *g.logs {
 		if strings.HasPrefix(log.path, g.base) {

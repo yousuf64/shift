@@ -91,7 +91,7 @@ type RouteInfo struct {
 }
 
 // Routes returns all the registered routes.
-// To retrieve only the routes registered within a Group, call Routes() from that particular Group.
+// To retrieve routes registered for a Group, use Group.Routes().
 func (r *Router) Routes() (routes []RouteInfo) {
 	routes = make([]RouteInfo, 0, len(*r.logs))
 

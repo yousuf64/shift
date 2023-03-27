@@ -19,11 +19,11 @@ type Core struct {
 // It provides the opportunity to maintain groups of routes in different files using the func(g *Group) func signature.
 //
 // It is also possible to nest groups within groups.
-func (c *Core) Group(path string, f func(g *Group)) {
+func (c *Core) Group(path string, fn func(g *Group)) {
 	stack := make([]MiddlewareFunc, len(c.mws), len(c.mws))
 	copy(stack, c.mws)
 
-	f(&Group{Core{
+	fn(&Group{Core{
 		logs: c.logs,
 		base: c.base + path,
 		mws:  stack,
