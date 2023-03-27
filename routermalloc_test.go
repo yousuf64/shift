@@ -13,7 +13,7 @@ import (
 )
 
 func TestRouterMallocs_ServeHTTP_MixedRoutes(t *testing.T) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,

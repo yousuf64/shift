@@ -49,12 +49,12 @@ func (m *mockRW) Header() http.Header {
 	return map[string][]string{}
 }
 
-func newTestDune() *Router {
+func newTestShift() *Router {
 	return New()
 }
 
 func TestRouter_ServeHTTP_StaticRoutes(t *testing.T) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":          http.MethodGet,
@@ -116,7 +116,7 @@ func TestRouter_ServeHTTP_StaticRoutes(t *testing.T) {
 }
 
 func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find/:name":             http.MethodGet,
@@ -187,7 +187,7 @@ func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
 }
 
 func TestRouter_ServeHTTP_DifferentParamNames(t *testing.T) {
-	r := newTestDune()
+	r := newTestShift()
 
 	f := func(kvs map[string]string) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {
@@ -211,8 +211,8 @@ func TestRouter_ServeHTTP_DifferentParamNames(t *testing.T) {
 	r4, _ := http.NewRequest(http.MethodGet, "/xyzgo/aaa", nil)
 	r.GET("/xyz:lang/aaa", f(map[string]string{"lang": "go"}))
 
-	r5, _ := http.NewRequest(http.MethodGet, "/www/dune/jpeg", nil)
-	r.GET("/www/:filename/:extension", f(map[string]string{"filename": "dune", "extension": "jpeg"}))
+	r5, _ := http.NewRequest(http.MethodGet, "/www/shift/jpeg", nil)
+	r.GET("/www/:filename/:extension", f(map[string]string{"filename": "shift", "extension": "jpeg"}))
 
 	r6, _ := http.NewRequest(http.MethodGet, "/www/meme/gif/upload", nil)
 	r.GET("/www/:file/:ext/upload", f(map[string]string{"file": "meme", "ext": "gif"}))
@@ -229,7 +229,7 @@ func TestRouter_ServeHTTP_DifferentParamNames(t *testing.T) {
 }
 
 func TestRouter_ServeHTTP_WildcardRoutes(t *testing.T) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/messages/*action":     http.MethodGet,
@@ -272,7 +272,7 @@ func TestRouter_ServeHTTP_WildcardRoutes(t *testing.T) {
 }
 
 func TestRouter_ServeHTTP_MixedRoutes(t *testing.T) {
-	d := newTestDune()
+	d := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -404,7 +404,7 @@ func TestRouter_ServeHTTP_MixedRoutes(t *testing.T) {
 
 func TestRouter_ServeHTTP_FallbackToParamRoute(t *testing.T) {
 	t.Run("scenario 1", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/search/got":           http.MethodGet,
@@ -443,7 +443,7 @@ func TestRouter_ServeHTTP_FallbackToParamRoute(t *testing.T) {
 	})
 
 	t.Run("scenario 2", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/search/go/go/goose":   http.MethodGet,
@@ -472,7 +472,7 @@ func TestRouter_ServeHTTP_FallbackToParamRoute(t *testing.T) {
 
 func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 	t.Run("scenario 1", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/search/:q/stop": http.MethodGet,
@@ -495,7 +495,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 	})
 
 	t.Run("scenario 2", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/foo/apple/mango/:fruit": http.MethodGet,
@@ -518,7 +518,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 	})
 
 	t.Run("scenario 3", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/foo/apple/mango/hanna":  http.MethodGet,
@@ -543,7 +543,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 
 func TestRouter_ServeHTTP_RecordParamsOnlyForMatchedPath(t *testing.T) {
 	t.Run("scenario 1", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/search":             http.MethodGet,
@@ -568,7 +568,7 @@ func TestRouter_ServeHTTP_RecordParamsOnlyForMatchedPath(t *testing.T) {
 	})
 
 	t.Run("scenario 2", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/search/go":        http.MethodGet,
@@ -591,7 +591,7 @@ func TestRouter_ServeHTTP_RecordParamsOnlyForMatchedPath(t *testing.T) {
 
 func TestRouter_ServeHTTP_Priority(t *testing.T) {
 	t.Run("static > wildcard", func(t *testing.T) {
-		d := newTestDune()
+		d := newTestShift()
 
 		paths := map[string]string{
 			"/better-call-saul_":        http.MethodGet,
@@ -613,7 +613,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 	})
 
 	t.Run("param > wildcard", func(t *testing.T) {
-		r := newTestDune()
+		r := newTestShift()
 
 		paths := map[string]string{
 			"/dark_:season": http.MethodGet,
@@ -844,7 +844,7 @@ func testRouter_ServeHTTP_2(t *testing.T, r *Server, rec *recorder, table router
 }
 
 func BenchmarkRouter_ServeHTTP_StaticRoutes(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	routes := []string{
 		"/users/find",
@@ -913,7 +913,7 @@ func BenchmarkRouter_ServeHTTP_StaticRoutes(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_MixedRoutes_S(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	routes := []string{
 		"/posts",
@@ -962,7 +962,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_S(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_MixedRoutes_X_1(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -1110,7 +1110,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_1(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_MixedRoutes_X_2(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodPost,
@@ -1258,7 +1258,7 @@ func BenchmarkRouter_ServeHTTP_MixedRoutes_X_2(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_MixedRoutes_X_3(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -1520,7 +1520,7 @@ func BenchmarkRouter_ServeHTTP_CaseInsensitive(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_ParamRoutes_GETMethod(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	routes := []string{
 		"/users/find/:name",
@@ -1598,7 +1598,7 @@ func BenchmarkRouter_ServeHTTP_ParamRoutes_GETMethod(b *testing.B) {
 }
 
 func BenchmarkRouter_ServeHTTP_ParamRoutes_RandomMethods(b *testing.B) {
-	r := newTestDune()
+	r := newTestShift()
 
 	routes := map[string]string{
 		"/users/find/:name":                http.MethodGet,
@@ -1730,15 +1730,15 @@ func TestRouter_CustomHTTPMethods(t *testing.T) {
 	r.Map([]string{"FOO"}, "/foo", f("FOO"))
 	r.Map([]string{"BAR"}, "/bar", f("BAR"))
 	r.Map([]string{"XYZ"}, "/xyz", f("XYZ"))
-	r.Map([]string{"DUNE"}, "/*loc", f("DUNE"))
+	r.Map([]string{"SHIFT"}, "/*loc", f("SHIFT"))
 
 	srv := r.Serve()
 
 	r1, _ := http.NewRequest("FOO", "/foo", nil)
 	r2, _ := http.NewRequest("BAR", "/bar", nil)
 	r3, _ := http.NewRequest("XYZ", "/xyz", nil)
-	r4, _ := http.NewRequest("DUNE", "/k8", nil)
-	r5, _ := http.NewRequest("DUNE", "/etcd", nil)
+	r4, _ := http.NewRequest("SHIFT", "/k8", nil)
+	r5, _ := http.NewRequest("SHIFT", "/etcd", nil)
 
 	rw := httptest.NewRecorder()
 	requests := [...]*http.Request{r1, r2, r3, r4, r5}
@@ -1769,7 +1769,7 @@ func TestRouter_HTTPMethods(t *testing.T) {
 	r.Map([]string{"FOO"}, "/foo", f("FOO"))
 	r.Map([]string{"BAR"}, "/bar", f("BAR"))
 	r.Map([]string{"XYZ"}, "/xyz", f("XYZ"))
-	r.Map([]string{"DUNE"}, "/*loc", f("DUNE"))
+	r.Map([]string{"SHIFT"}, "/*loc", f("SHIFT"))
 
 	srv := r.Serve()
 
@@ -1783,8 +1783,8 @@ func TestRouter_HTTPMethods(t *testing.T) {
 	r8, _ := http.NewRequest("FOO", "/foo", nil)
 	r9, _ := http.NewRequest("BAR", "/bar", nil)
 	r10, _ := http.NewRequest("XYZ", "/xyz", nil)
-	r11, _ := http.NewRequest("DUNE", "/k8", nil)
-	r12, _ := http.NewRequest("DUNE", "/etcd", nil)
+	r11, _ := http.NewRequest("SHIFT", "/k8", nil)
+	r12, _ := http.NewRequest("SHIFT", "/etcd", nil)
 
 	rw := httptest.NewRecorder()
 	requests := [...]*http.Request{r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12}
@@ -2207,16 +2207,16 @@ func TestRouter_StaticRoutes_EmptyParamsRef(t *testing.T) {
 	r.GET("/foo/foo", f)
 	r.POST("/foo/foo", f)
 	r.HEAD("/bar/index.html", f)
-	r.GET("/dune/config.html", f)
-	r.GET("/dune/up.yaml", f)
+	r.GET("/shift/config.html", f)
+	r.GET("/shift/up.yaml", f)
 
 	srv := r.Serve()
 
 	r1, _ := http.NewRequest(http.MethodGet, "/foo/foo", nil)
 	r2, _ := http.NewRequest(http.MethodPost, "/foo/foo", nil)
 	r3, _ := http.NewRequest(http.MethodHead, "/bar/index.html", nil)
-	r4, _ := http.NewRequest(http.MethodGet, "/dune/config.html", nil)
-	r5, _ := http.NewRequest(http.MethodGet, "/dune/up.yaml", nil)
+	r4, _ := http.NewRequest(http.MethodGet, "/shift/config.html", nil)
+	r5, _ := http.NewRequest(http.MethodGet, "/shift/up.yaml", nil)
 
 	rw := httptest.NewRecorder()
 	requests := [...]*http.Request{r1, r2, r3, r4, r5}
@@ -2255,16 +2255,16 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	r.GET("/foo/foo", f)
 	r.POST("/foo/foo", f)
 	r.HEAD("/bar/index.html", f)
-	r.GET("/dune/config.html", f)
-	r.GET("/dune/up.yaml", f)
+	r.GET("/shift/config.html", f)
+	r.GET("/shift/up.yaml", f)
 
 	srv := r.Serve()
 
 	r1, _ := http.NewRequest(http.MethodGet, "/foo/foo", nil)
 	r2, _ := http.NewRequest(http.MethodPost, "/foo/foo", nil)
 	r3, _ := http.NewRequest(http.MethodHead, "/bar/index.html", nil)
-	r4, _ := http.NewRequest(http.MethodGet, "/dune/config.html", nil)
-	r5, _ := http.NewRequest(http.MethodGet, "/dune/up.yaml", nil)
+	r4, _ := http.NewRequest(http.MethodGet, "/shift/config.html", nil)
+	r5, _ := http.NewRequest(http.MethodGet, "/shift/up.yaml", nil)
 
 	rw := httptest.NewRecorder()
 	requests := [...]*http.Request{r1, r2, r3, r4, r5}
