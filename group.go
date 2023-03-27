@@ -1,5 +1,7 @@
 package shift
 
+import "strings"
+
 type core = Core
 
 // Group builds on top of Core and provides additional Group specific methods.
@@ -18,4 +20,29 @@ type Group struct {
 // To use a net/http idiomatic middleware, wrap the middleware in the HTTPMiddlewareFunc.
 func (g *Group) Use(middlewares ...MiddlewareFunc) {
 	g.mws = append(g.mws, middlewares...)
+}
+
+// Base returns the base path of the Group.
+//
+// For example,
+//
+//	router.Group("/v1/foo", func(group *shift.Group) {
+//		group.Base() // returns /v1/foo
+//	})
+func (g *Group) Base() string {
+	return g.base
+}
+
+// Routes returns the routes registered within the Group.
+// To retrieve all the routes, call Routes() from the Router.
+func (g *Group) Routes() (routes []RouteInfo) {
+	for _, log := range *g.logs {
+		if strings.HasPrefix(log.path, g.base) {
+			routes = append(routes, RouteInfo{
+				Method: log.method,
+				Path:   log.path,
+			})
+		}
+	}
+	return
 }

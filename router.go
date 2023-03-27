@@ -2,7 +2,6 @@ package shift
 
 import (
 	"net/http"
-	"strings"
 )
 
 type routingBehavior uint8
@@ -92,7 +91,7 @@ type RouteInfo struct {
 }
 
 // Routes returns all the registered routes.
-// To retrieve only the routes registered within the current scope, use RoutesScoped instead.
+// To retrieve only the routes registered within a Group, call Routes() from that particular Group.
 func (r *Router) Routes() (routes []RouteInfo) {
 	routes = make([]RouteInfo, 0, len(*r.logs))
 
@@ -104,37 +103,6 @@ func (r *Router) Routes() (routes []RouteInfo) {
 	}
 
 	return
-}
-
-// RoutesScoped returns the routes registered within the current scope.
-// To retrieve all the routes, use Routes instead.
-func (r *Router) RoutesScoped() (routes []RouteInfo) {
-	routes = make([]RouteInfo, 0, len(*r.logs))
-	all := len(r.base) == 0
-
-	for _, log := range *r.logs {
-		if all || strings.HasPrefix(log.path, r.base) {
-			last := len(routes)
-			routes = routes[:last+1]
-			routes[last] = RouteInfo{
-				Method: log.method,
-				Path:   log.path,
-			}
-		}
-	}
-
-	return
-}
-
-// Base returns the base path of the group.
-//
-// For example,
-//
-//	d.Group("/v1/foo", func(d *dune.Dune) {
-//		d.Base() # returns /v1/foo
-//	})
-func (r *Router) Base() string {
-	return r.base
 }
 
 type methodInfo struct {
