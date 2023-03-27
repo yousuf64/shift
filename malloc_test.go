@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestRouterMallocs_ServeHTTP_MixedRoutes(t *testing.T) {
+func TestRouterMalloc_ServeHTTP_MixedRoutes(t *testing.T) {
 	r := newTestShift()
 
 	paths := map[string]string{
@@ -139,4 +139,18 @@ func TestRouterMallocs_ServeHTTP_MixedRoutes(t *testing.T) {
 	})
 
 	assert(t, allocations == 0, fmt.Sprintf("expected zero allocations, got %g allocations", allocations))
+}
+
+func TestPathCleanMalloc(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping malloc count in short mode")
+	}
+
+	for _, test := range cleanTests {
+		test := test
+		allocs := testing.AllocsPerRun(100, func() { cleanPath(test.result) })
+		if allocs > 0 {
+			t.Errorf("CleanPath(%q): %v allocs, want zero", test.result, allocs)
+		}
+	}
 }

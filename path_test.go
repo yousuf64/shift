@@ -77,20 +77,6 @@ func TestPathClean(t *testing.T) {
 	}
 }
 
-func TestPathCleanMallocs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping malloc count in short mode")
-	}
-
-	for _, test := range cleanTests {
-		test := test
-		allocs := testing.AllocsPerRun(100, func() { cleanPath(test.result) })
-		if allocs > 0 {
-			t.Errorf("CleanPath(%q): %v allocs, want zero", test.result, allocs)
-		}
-	}
-}
-
 func BenchmarkPathClean(b *testing.B) {
 	b.ReportAllocs()
 
