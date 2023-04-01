@@ -98,9 +98,15 @@ func (p *Params) Slice() []Param {
 
 // Copy returns a copy of Params.
 func (p *Params) Copy() *Params {
-	cp := new(Params)
-	*cp = *p
-	return cp
+	values := make([]string, len(p.values))
+	copy(values, p.values)
+
+	return &Params{
+		i:      p.i,
+		max:    p.max,
+		keys:   p.keys,
+		values: values,
+	}
 }
 
 // emptyParams is a Params object with 0 capacity.

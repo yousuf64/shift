@@ -108,6 +108,21 @@ func TestParams_Copy(t *testing.T) {
 		val := cp.Get("foo")
 		assert(t, val == "bar", fmt.Sprintf("expected: bar, got: %s", val))
 	})
+
+	t.Run("Copy should not be affected when source is reset and reused", func(t *testing.T) {
+		p := newParams(2)
+		p.setKeys(&[]string{"foo", "woo"})
+		p.appendValue("bar")
+		p.appendValue("abc")
+
+		cp := p.Copy()
+		p.reset()
+		p.setKeys(&[]string{"foo"})
+		p.appendValue("xyz")
+
+		val := cp.Get("foo")
+		assert(t, val == "bar", fmt.Sprintf("expected: bar, got: %s", val))
+	})
 }
 
 func BenchmarkParams_Copy(b *testing.B) {
