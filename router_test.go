@@ -180,7 +180,7 @@ func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
 		{method: http.MethodGet, path: "/gophers.html/fetch", valid: false, pathTemplate: "", params: nil},
 		{method: http.MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
 		{method: http.MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
-		{method: http.MethodGet, path: "/hero-", valid: false, pathTemplate: "", params: nil},
+		{method: http.MethodGet, path: "/hero-", valid: true, pathTemplate: "/:file", params: map[string]string{"file": "hero-"}},
 	}
 
 	testRouter_ServeHTTP(t, r.Serve(), rec, tt)
@@ -396,7 +396,7 @@ func TestRouter_ServeHTTP_MixedRoutes(t *testing.T) {
 
 		{method: http.MethodGet, path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
 		{method: http.MethodGet, path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
-		{method: http.MethodGet, path: "/hero-", valid: false, pathTemplate: "", params: nil},
+		{method: http.MethodGet, path: "/hero-", valid: true, pathTemplate: "/:file", params: map[string]string{"file": "hero-"}},
 	}
 
 	testRouter_ServeHTTP(t, d.Serve(), rec, tt)

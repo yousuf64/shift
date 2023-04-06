@@ -315,9 +315,6 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 						params.appendValue(path[len(child.prefix):])
 						return child.wildcard, params
 					}
-
-					// No match :/
-					return nil, params
 				} else if strings.HasPrefix(path, child.prefix) {
 					// path: /foobar
 					// pref: /foo

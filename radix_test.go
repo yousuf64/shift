@@ -161,7 +161,7 @@ func TestDynamicRoutes(t *testing.T) {
 		{path: "/gophers.html/fetch", valid: false, pathTemplate: ""},
 		{path: "/hero-goku", valid: true, pathTemplate: "/hero-:name"},
 		{path: "/hero-thor", valid: true, pathTemplate: "/hero-:name"},
-		{path: "/hero-", valid: false, pathTemplate: ""},
+		{path: "/hero-", valid: true, pathTemplate: "/:file"},
 	}
 
 	testSearch(t, tree, params, tt)
@@ -236,7 +236,7 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 		{path: "/gophers.html/fetch", valid: false, pathTemplate: "", params: nil},
 		{path: "/hero-goku", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "goku"}},
 		{path: "/hero-thor", valid: true, pathTemplate: "/hero-:name", params: map[string]string{"name": "thor"}},
-		{path: "/hero-", valid: false, pathTemplate: "", params: nil},
+		{path: "/hero-", valid: true, pathTemplate: "/:file", params: map[string]string{"file": "hero-"}},
 	}
 
 	testSearchWithParams(t, tree, maxParams, tt)
@@ -436,6 +436,57 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 		testSearchWithParams(t, tree, maxParams, tt)
 	})
 
+	t.Run("5", func(t *testing.T) {
+		paths := [...]string{
+			"/:text",
+			"/color|:hex",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/color|", valid: true, pathTemplate: "/:text", params: map[string]string{"text": "color|"}},
+			// Should evaluate /color|:hex first, but should fall back to /:text since param value is not provided.
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
+
+	t.Run("6", func(t *testing.T) {
+		paths := [...]string{
+			"/locations/reviews:id",
+			"/loc:param/reviews",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/locations/reviews", valid: true, pathTemplate: "/loc:param/reviews", params: map[string]string{"param": "ations"}},
+			// Should evaluate /locations/reviews:id first, but should fall back to /loc:param/reviews since param value is not provided.
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
 }
 
 func BenchmarkSimple(b *testing.B) {
