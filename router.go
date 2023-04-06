@@ -52,8 +52,14 @@ func New() *Router {
 				},
 			},
 			&Config{
-				defaultConfig.trailingSlashMatch,
-				defaultConfig.pathCorrectionMatch,
+				&actionConfig{
+					behavior: defaultConfig.trailingSlashMatch.behavior,
+					code:     defaultConfig.trailingSlashMatch.code,
+				},
+				&actionConfig{
+					behavior: defaultConfig.pathCorrectionMatch.behavior,
+					code:     defaultConfig.pathCorrectionMatch.code,
+				},
 				defaultConfig.notFoundHandler,
 				defaultConfig.handleMethodNotAllowed,
 			},
