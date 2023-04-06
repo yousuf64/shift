@@ -85,7 +85,7 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Correct the path and do a case-insensitive search...
 	if svr.config.pathCorrectionMatch.behavior != behaviorSkip {
 		clean := cleanPath(path)
-		handler, ps, matchedPath := mux.findCaseInsensitive(clean, svr.config.pathCorrectionMatch.behavior == behaviorExecute)
+		handler, ps, template, matchedPath := mux.findCaseInsensitive(clean, svr.config.pathCorrectionMatch.behavior == behaviorExecute)
 		if handler != nil {
 			switch svr.config.pathCorrectionMatch.behavior {
 			case behaviorRedirect:
@@ -98,10 +98,9 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					// This is to ensure Route.Params is never <nil> in the request handler.
 					ps = emptyParams
 				}
-				r.URL.Path = matchedPath
 				_ = handler(w, r, Route{
 					Params: ps,
-					Path:   "",
+					Path:   template,
 				})
 				return
 			}

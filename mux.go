@@ -10,7 +10,7 @@ import (
 type multiplexer interface {
 	add(path string, isStatic bool, handler HandlerFunc)
 	find(path string) (HandlerFunc, *Params, string)
-	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *Params, matchedPath string)
+	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *Params, template string, matchedPath string)
 }
 
 // radixMux can store both static and param routes.
@@ -80,7 +80,7 @@ func (mux *radixMux) find(path string) (HandlerFunc, *Params, string) {
 	return nil, nil, ""
 }
 
-func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string) {
+func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string, string) {
 	n, ps, matchedPath := mux.tree.caseInsensitiveSearch(path, func() *Params {
 		ps := mux.paramsPool.Get().(*Params)
 		return ps
@@ -94,10 +94,10 @@ func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerF
 			ps = nil
 		}
 
-		return n.handler, ps, matchedPath
+		return n.handler, ps, n.template, matchedPath
 	}
 
-	return nil, nil, ""
+	return nil, nil, "", ""
 }
 
 // staticMux can store only static routes.
@@ -151,9 +151,9 @@ func (mux *staticMux) find(path string) (HandlerFunc, *Params, string) {
 	return mux.routes[path], nil, path
 }
 
-func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Params, string) {
+func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Params, string, string) {
 	if len(path) >= len(mux.byLength) {
-		return nil, nil, ""
+		return nil, nil, "", ""
 	}
 
 	// Retrieve all the paths with the provided path's length.
@@ -161,12 +161,12 @@ func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Pa
 		for _, key := range keys {
 			// Find a matching path.
 			if lng := longestPrefixCaseInsensitive(key, path); lng == len(path) {
-				return mux.routes[key], nil, key
+				return mux.routes[key], nil, key, key
 			}
 		}
 	}
 
-	return nil, nil, ""
+	return nil, nil, "", ""
 }
 
 // hybridMux can store both static and param routes.
@@ -198,9 +198,9 @@ func (mux *hybridMux) find(path string) (HandlerFunc, *Params, string) {
 	return mux.radix.find(path)
 }
 
-func (mux *hybridMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string) {
-	if handler, ps, matchedPath := mux.static.findCaseInsensitive(path, withParams); handler != nil {
-		return handler, ps, matchedPath
+func (mux *hybridMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string, string) {
+	if handler, ps, template, matchedPath := mux.static.findCaseInsensitive(path, withParams); handler != nil {
+		return handler, ps, template, matchedPath
 	}
 
 	return mux.radix.findCaseInsensitive(path, withParams)

@@ -760,8 +760,7 @@ func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
 
 	f := func(path string) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {
-			u := r.URL.String()
-			assert(t, path == u, fmt.Sprintf("request path expected: %s, got: %s", path, u))
+			assert(t, path == route.Path, fmt.Sprintf("route path expected: %s, got: %s", path, route.Path))
 			return nil
 		}
 	}
@@ -774,11 +773,12 @@ func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
 	srv := r.Serve()
 
 	r1, _ := http.NewRequest(http.MethodGet, "/FoO", nil)
-	r2, _ := http.NewRequest(http.MethodGet, "/aBC/xYz", nil)
-	r3, _ := http.NewRequest(http.MethodGet, "/gO/GO/go", nil)
-	r4, _ := http.NewRequest(http.MethodGet, "/BaR/CcC/ddD/zzZ", nil)
+	r2, _ := http.NewRequest(http.MethodGet, "../../Foo", nil)
+	r3, _ := http.NewRequest(http.MethodGet, "/aBC/xYz", nil)
+	r4, _ := http.NewRequest(http.MethodGet, "/gO/GO/go", nil)
+	r5, _ := http.NewRequest(http.MethodGet, "/BaR/CcC/ddD/zzZ", nil)
 
-	requests := [...]*http.Request{r1, r2, r3, r4}
+	requests := [...]*http.Request{r1, r2, r3, r4, r5}
 	rw := httptest.NewRecorder()
 
 	for _, request := range requests {
