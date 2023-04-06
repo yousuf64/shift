@@ -338,16 +338,9 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 	if n.param != nil {
 		// Check if more sections are left to match in the path.
 
-		if idx := strings.IndexByte(path, '/'); idx == -1 {
-			// No more sections to match.
-			// Dead end #3
-			if n.param.handler != nil {
-				params = paramInjector()
-				params.setKeys(n.param.paramKeys) // Param node would always have paramKeys.
-				params.appendValue(path)
-				return n.param, params
-			}
-		} else {
+		// When idx == 0, it means param value in the path is empty.
+		// Example: /posts//comments
+		if idx := strings.IndexByte(path, '/'); idx > 0 {
 			// Traverse the param node until all the path sections are matched.
 			var innerChild *node
 			innerChild, params = n.param.searchRecursion(path[idx:], params, paramInjector)
@@ -355,6 +348,13 @@ func (n *node) searchRecursion(path string, params *Params, paramInjector func()
 				params.appendValue(path[:idx])
 				return innerChild, params
 			}
+		} else if n.param.handler != nil {
+			// No more sections to match and has a valid handler for the param node.
+			// Dead end #3
+			params = paramInjector()
+			params.setKeys(n.param.paramKeys) // Param node would always have paramKeys.
+			params.appendValue(path)
+			return n.param, params
 		}
 	}
 
