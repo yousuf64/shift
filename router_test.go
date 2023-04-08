@@ -80,7 +80,7 @@ func TestRouter_ServeHTTP_StaticRoutes(t *testing.T) {
 	rec := &recorder{}
 
 	for path, meth := range paths {
-		r.Map([]string{meth}, path, rec.Handler(path))
+		r.Map([]string{meth}, path, rec.Handler())
 	}
 
 	tt := routerScenario{
@@ -146,7 +146,7 @@ func TestRouter_ServeHTTP_ParamRoutes(t *testing.T) {
 	rec := &recorder{}
 
 	for path, meth := range paths {
-		r.Map([]string{meth}, path, rec.Handler(path))
+		r.Map([]string{meth}, path, rec.Handler())
 	}
 
 	tt := routerScenario{
@@ -242,7 +242,7 @@ func TestRouter_ServeHTTP_WildcardRoutes(t *testing.T) {
 	rec := &recorder{}
 
 	for path, meth := range paths {
-		r.Map([]string{meth}, path, rec.Handler(path))
+		r.Map([]string{meth}, path, rec.Handler())
 	}
 
 	tt := routerScenario{
@@ -328,7 +328,7 @@ func TestRouter_ServeHTTP_MixedRoutes(t *testing.T) {
 	rec := &recorder{}
 
 	for path, meth := range paths {
-		d.Map([]string{meth}, path, rec.Handler(path))
+		d.Map([]string{meth}, path, rec.Handler())
 	}
 
 	tt := routerScenario{
@@ -418,7 +418,7 @@ func TestRouter_ServeHTTP_FallbackToParamRoute(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -456,7 +456,7 @@ func TestRouter_ServeHTTP_FallbackToParamRoute(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -482,7 +482,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -505,7 +505,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -529,7 +529,7 @@ func TestRouter_ServeHTTP_FallbackToWildcardRoute(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -555,7 +555,7 @@ func TestRouter_ServeHTTP_RecordParamsOnlyForMatchedPath(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -578,7 +578,7 @@ func TestRouter_ServeHTTP_RecordParamsOnlyForMatchedPath(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerTestTable2{
@@ -601,7 +601,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			d.Map([]string{meth}, path, rec.Handler(path))
+			d.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerScenario{
@@ -623,7 +623,7 @@ func TestRouter_ServeHTTP_Priority(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerScenario{
@@ -694,7 +694,7 @@ func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 	rec := &recorder{}
 
 	for path, meth := range paths {
-		r.Map([]string{meth}, path, rec.Handler(path))
+		r.Map([]string{meth}, path, rec.Handler())
 	}
 
 	tt := routerScenario{
@@ -2319,7 +2319,7 @@ func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerScenario{
@@ -2340,7 +2340,7 @@ func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
 		rec := &recorder{}
 
 		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler(path))
+			r.Map([]string{meth}, path, rec.Handler())
 		}
 
 		tt := routerScenario{
@@ -2367,10 +2367,10 @@ type recorder struct {
 	path   string
 }
 
-func (rc *recorder) Handler(path string) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request, route Route) error {
+func (rc *recorder) Handler() HandlerFunc {
+	return func(_ http.ResponseWriter, _ *http.Request, route Route) error {
 		rc.params = route.Params.Copy()
-		rc.path = path
+		rc.path = route.Path
 		return nil
 	}
 }
