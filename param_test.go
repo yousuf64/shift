@@ -80,8 +80,8 @@ func TestParams_Slice(t *testing.T) {
 
 	params := p.Slice()
 	for i := 0; i < len(tests); i++ {
-		assert(t, params[i].key == tests[i].k, fmt.Sprintf("key at index %d > expected: %s, got: %s", i, tests[i].k, params[i].key))
-		assert(t, params[i].value == tests[i].v, fmt.Sprintf("value at index %d > expected: %s, got: %s", i, tests[i].v, params[i].value))
+		assert(t, params[i].Key == tests[i].k, fmt.Sprintf("key at index %d > expected: %s, got: %s", i, tests[i].k, params[i].Key))
+		assert(t, params[i].Value == tests[i].v, fmt.Sprintf("value at index %d > expected: %s, got: %s", i, tests[i].v, params[i].Value))
 	}
 }
 

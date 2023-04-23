@@ -2,8 +2,8 @@ package shift
 
 // Param is a key-value pair of request's route params.
 type Param struct {
-	key   string
-	value string
+	Key   string
+	Value string
 }
 
 // Params stores the request's route params.
@@ -88,8 +88,8 @@ func (p *Params) Slice() []Param {
 
 	for i := len(*p.keys) - 1; i >= 0; i-- {
 		params = append(params, Param{
-			key:   (*p.keys)[i],
-			value: p.values[i],
+			Key:   (*p.keys)[i],
+			Value: p.values[i],
 		})
 	}
 
