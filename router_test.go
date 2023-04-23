@@ -2235,8 +2235,8 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	paramAccessor := func(ps *Params) {
 		ps.appendValue("v") // though the func is not exported, let's ensure we don't add any concurrent unsafe behavior.
 		ps.Get("id")
-		ps.ForEach(func(k, v string) bool {
-			return true
+		ps.ForEach(func(k, v string) {
+			t.Fatalf("didn't expect the predicate to run")
 		})
 	}
 

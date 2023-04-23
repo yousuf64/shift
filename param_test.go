@@ -38,11 +38,10 @@ func TestParams_ForEach(t *testing.T) {
 	}
 
 	i := 0
-	p.ForEach(func(k, v string) bool {
+	p.ForEach(func(k, v string) {
 		assert(t, k == tests[i].k, fmt.Sprintf("key > expected: %s, got: %s", tests[i].k, k))
 		assert(t, v == tests[i].v, fmt.Sprintf("value > expected: %s, got: %s", tests[i].v, v))
 		i++
-		return true
 	})
 }
 

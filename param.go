@@ -63,7 +63,7 @@ func (p *Params) Get(key string) string {
 }
 
 // ForEach iterates through Params in the order params are defined in the route.
-func (p *Params) ForEach(fn func(k, v string) bool) {
+func (p *Params) ForEach(fn func(k, v string)) {
 	if p.keys != nil {
 		for i := len(*p.keys) - 1; i >= 0; i-- {
 			fn((*p.keys)[i], p.values[i])
