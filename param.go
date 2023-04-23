@@ -116,3 +116,7 @@ func (p *Params) Copy() *Params {
 //
 // Also, avoid pooling emptyParams as it cannot take writes.
 var emptyParams = newParams(0)
+
+func init() {
+	emptyParams.setKeys(&[]string{}) // ensures Params.keys is non-nil. Prevents from panicking on Params.Slice() and Params.Map().
+}

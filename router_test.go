@@ -2238,6 +2238,9 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 		ps.ForEach(func(k, v string) {
 			t.Fatalf("didn't expect the predicate to run")
 		})
+		ps.Slice()
+		ps.Map()
+		ps.Copy()
 	}
 
 	f := func(w http.ResponseWriter, r *http.Request, route Route) error {
