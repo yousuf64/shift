@@ -384,7 +384,7 @@ The router will reply `Hello, from FOO method 👊` for the above request.
 
 ## Credits
 * Julien Schmidt for [HttpRouter](https://github.com/julienschmidt/httprouter).
-  * `path.go` file is directly taken from this project for path correction.
+  * `path.go` file is taken from the `HttpRouter` project for path correction.
 
 ## License
 Licensed under [MIT License](/LICENSE)
@@ -393,4 +393,4 @@ Copyright (c) 2023 Mohammed Yousuf
 
 ## Status
 `shift` is currently pre-1.0. Therefore, there could be minor breaking changes to stabilize the API before the initial stable release. Please open an issue if you have questions, requests, suggestions for improvements, or concerns.
-It's intended to release 1.0.0 during the first week of April.
+It's intended to release 1.0.0 before the end of August.
