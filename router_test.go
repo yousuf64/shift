@@ -2311,7 +2311,7 @@ func TestWithRedirectCustom(t *testing.T) {
 	})
 }
 
-func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
+func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_1(t *testing.T) {
 	t.Run("full segment param", func(t *testing.T) {
 		r := newTestShift()
 
@@ -2349,6 +2349,84 @@ func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
 		tt := routerScenario{
 			{method: http.MethodGet, path: "/products-/reviews", valid: false, pathTemplate: "", params: nil},
 			{method: http.MethodGet, path: "/products-911/reviews", valid: true, pathTemplate: "/products-:id/reviews", params: map[string]string{"id": "911"}},
+		}
+
+		testRouter_ServeHTTP(t, r.Serve(), rec, tt)
+	})
+}
+
+// Refer issue https://github.com/yousuf64/shift/issues/9
+func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_2(t *testing.T) {
+	t.Run("full segment param", func(t *testing.T) {
+		r := newTestShift()
+
+		paths := map[string]string{
+			"/posts/:id":          http.MethodGet,
+			"/:aaa":               http.MethodGet,
+			"/:abc/:bbb/comments": http.MethodGet,
+		}
+
+		rec := &recorder{}
+
+		for path, meth := range paths {
+			r.Map([]string{meth}, path, rec.Handler())
+		}
+
+		tt := routerScenario{
+			{method: http.MethodGet, path: "/posts/400", valid: true, pathTemplate: "/posts/:id", params: map[string]string{"id": "400"}},
+			{method: http.MethodGet, path: "//posts////", valid: false},
+			{method: http.MethodGet, path: "/posts//", valid: false},
+			{method: http.MethodGet, path: "/posts//comments", valid: false},
+		}
+
+		testRouter_ServeHTTP(t, r.Serve(), rec, tt)
+	})
+
+	t.Run("mid segment param", func(t *testing.T) {
+		r := newTestShift()
+
+		paths := map[string]string{
+			"/products:id":      http.MethodGet,
+			"/products:id/tags": http.MethodGet,
+		}
+
+		rec := &recorder{}
+
+		for path, meth := range paths {
+			r.Map([]string{meth}, path, rec.Handler())
+		}
+
+		tt := routerScenario{
+			{method: http.MethodGet, path: "/products101", valid: true, pathTemplate: "/products:id", params: map[string]string{"id": "101"}},
+			{method: http.MethodGet, path: "/products101/tags", valid: true, pathTemplate: "/products:id/tags", params: map[string]string{"id": "101"}},
+			{method: http.MethodGet, path: "/products/", valid: false},
+			{method: http.MethodGet, path: "/products/1", valid: false},
+			{method: http.MethodGet, path: "/products//", valid: false},
+			{method: http.MethodGet, path: "/products//tags", valid: false},
+			{method: http.MethodGet, path: "/products/tags", valid: false},
+		}
+
+		testRouter_ServeHTTP(t, r.Serve(), rec, tt)
+	})
+
+	t.Run("root segment param", func(t *testing.T) {
+		r := newTestShift()
+
+		paths := map[string]string{
+			"/:aaa": http.MethodGet,
+		}
+
+		rec := &recorder{}
+
+		for path, meth := range paths {
+			r.Map([]string{meth}, path, rec.Handler())
+		}
+
+		tt := routerScenario{
+			{method: http.MethodGet, path: "/hello", valid: true, pathTemplate: "/:aaa", params: map[string]string{"aaa": "hello"}},
+			{method: http.MethodGet, path: "https://example.com//", valid: false},
+			{method: http.MethodGet, path: "https://example.com///", valid: false},
+			{method: http.MethodGet, path: "https://example.com///hello", valid: false},
 		}
 
 		testRouter_ServeHTTP(t, r.Serve(), rec, tt)
