@@ -487,6 +487,31 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		testSearchWithParams(t, tree, maxParams, tt)
 	})
+
+	t.Run("7", func(t *testing.T) {
+		paths := [...]string{
+			"/locations/reviews-:id",
+			"/loc:param/reviews-",
+		}
+
+		tree := &node{}
+
+		maxParams := 0
+		for _, path := range paths {
+			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+
+			pc := findParamsCount(path)
+			if pc > maxParams {
+				maxParams = pc
+			}
+		}
+
+		tt := testTable2{
+			{path: "/locations/reviews-", valid: true, pathTemplate: "/loc:param/reviews-", params: map[string]string{"param": "ations"}},
+		}
+
+		testSearchWithParams(t, tree, maxParams, tt)
+	})
 }
 
 func BenchmarkSimple(b *testing.B) {
