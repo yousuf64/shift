@@ -9,11 +9,13 @@ package shift
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
-func TestRouterMalloc_ServeHTTP_MixedRoutes(t *testing.T) {
-	r := newTestShift()
+func TestRouter_ServeHTTP_MixedRoutes_Malloc(t *testing.T) {
+	r := newTestRouter()
 
 	paths := map[string]string{
 		"/users/find":                   http.MethodGet,
@@ -70,7 +72,7 @@ func TestRouterMalloc_ServeHTTP_MixedRoutes(t *testing.T) {
 		r.Map([]string{meth}, path, fakeHandler())
 	}
 
-	tt := routerScenario{
+	tt := []srvTestItem{
 		{method: http.MethodGet, path: "/users/find", valid: true, pathTemplate: "/users/find"},
 		{method: http.MethodGet, path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name", params: map[string]string{"name": "yousuf"}},
 		{method: http.MethodGet, path: "/users/john/delete", valid: true, pathTemplate: "/users/:id/delete", params: map[string]string{"id": "john"}},
@@ -141,14 +143,133 @@ func TestRouterMalloc_ServeHTTP_MixedRoutes(t *testing.T) {
 	assert(t, allocations == 0, fmt.Sprintf("expected zero allocations, got %g allocations", allocations))
 }
 
-func TestPathCleanMalloc(t *testing.T) {
+func TestRouter_20Params_Malloc(t *testing.T) {
+	r := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 20; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, route Route) error {
+		for _, key := range paramKeys {
+			if v := route.Params.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+		return nil
+	}
+
+	r.GET(template.String(), f)
+
+	srv := r.Serve()
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		srv.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func TestRouter_200Params_Malloc(t *testing.T) {
+	r := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 200; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, route Route) error {
+		for _, key := range paramKeys {
+			if v := route.Params.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+		return nil
+	}
+
+	r.GET(template.String(), f)
+
+	srv := r.Serve()
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		srv.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func TestRouter_2000Params_Malloc(t *testing.T) {
+	r := New()
+
+	var template strings.Builder
+	var path strings.Builder
+	var paramKeys []string
+
+	for i := 1; i <= 2000; i++ {
+		template.WriteString(fmt.Sprintf("/:%d", i))
+		path.WriteString("/foo")
+		paramKeys = append(paramKeys, fmt.Sprintf("%d", i))
+	}
+
+	f := func(w http.ResponseWriter, r *http.Request, route Route) error {
+		for _, key := range paramKeys {
+			if v := route.Params.Get(key); v != "foo" {
+				panic(fmt.Sprintf("param value > expected: foo, got: %s", v))
+			}
+		}
+		return nil
+	}
+
+	r.GET(template.String(), f)
+
+	srv := r.Serve()
+
+	rw := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, path.String(), nil)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		srv.ServeHTTP(rw, req)
+		if rw.Code != http.StatusOK {
+			panic(fmt.Sprintf("http status > expected: %d, got: %d", http.StatusOK, rw.Code))
+		}
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocs > expected: 0, got: %g", allocs))
+}
+
+func TestCleanPath_Malloc(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping malloc count in short mode")
 	}
 
 	for _, test := range cleanTests {
 		test := test
-		allocs := testing.AllocsPerRun(100, func() { cleanPath(test.result) })
+		allocs := testing.AllocsPerRun(100, func() {
+			cleanPath(test.result)
+		})
 		if allocs > 0 {
 			t.Errorf("CleanPath(%q): %v allocs, want zero", test.result, allocs)
 		}

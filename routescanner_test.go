@@ -2,15 +2,11 @@ package shift
 
 import "testing"
 
-type item struct {
-	path     string
-	segments []string
-}
-
-type testTable = []item
-
 func TestRouteScanner(t *testing.T) {
-	table := testTable{
+	table := []struct {
+		path     string
+		segments []string
+	}{
 		{path: "/blog/posts", segments: []string{"/blog/posts"}},
 		{path: "/users/:id/action", segments: []string{"/users/", ":id", "/action"}},
 		{path: "/assets/*dir", segments: []string{"/assets/", "*dir"}},

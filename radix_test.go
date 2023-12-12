@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var fakeHandler1 = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+var fakeHttpHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 type testItem1 struct {
 	path         string
@@ -50,7 +50,7 @@ func TestStatic(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -121,7 +121,7 @@ func TestDynamicRoutes(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -197,7 +197,7 @@ func TestDynamicRoutesWithParams(t *testing.T) {
 
 	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 		pc := findParamsCount(path)
 		if pc > maxParams {
@@ -255,7 +255,7 @@ func TestWildcard(t *testing.T) {
 
 	paramsCount := 0
 	for _, path := range paths {
-		tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 		pc := findParamsCount(path)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -302,7 +302,7 @@ func TestWildcardParams(t *testing.T) {
 
 	maxParams := 0
 	for _, path := range paths {
-		tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 		pc := findParamsCount(path)
 		if pc > maxParams {
@@ -345,7 +345,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -371,7 +371,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -396,7 +396,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -421,7 +421,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -446,7 +446,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -472,7 +472,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -498,7 +498,7 @@ func TestNode_Search_TraversalPathChange(t *testing.T) {
 
 		maxParams := 0
 		for _, path := range paths {
-			tree.insert(path, HTTPHandlerFunc(fakeHandler1))
+			tree.insert(path, HTTPHandlerFunc(fakeHttpHandler))
 
 			pc := findParamsCount(path)
 			if pc > maxParams {
@@ -536,7 +536,7 @@ func BenchmarkSimple(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(route, HTTPHandlerFunc(fakeHttpHandler))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc
@@ -604,7 +604,7 @@ func BenchmarkSimple2(b *testing.B) {
 
 	paramsCount := 0
 	for _, route := range routes {
-		tree.insert(route, HTTPHandlerFunc(fakeHandler1))
+		tree.insert(route, HTTPHandlerFunc(fakeHttpHandler))
 		pc := findParamsCount(route)
 		if pc > paramsCount {
 			paramsCount = pc
