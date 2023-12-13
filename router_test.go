@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 )
 
 type serverTestable interface {
@@ -797,9 +796,6 @@ func TestRouter_ServeHTTP_CaseInsensitive(t *testing.T) {
 	testRouter(t, r.Serve(), rec, tt)
 }
 
-	testRouter_ServeHTTP(t, r.Serve(), rec, tt)
-}
-
 func TestStaticMux_CaseInsensitiveSearch(t *testing.T) {
 	r := New()
 	r.UsePathCorrectionMatch(WithExecute())
@@ -1310,7 +1306,7 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
+func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_1(t *testing.T) {
 	t.Run("full segment param", func(t *testing.T) {
 		r := newTestRouter()
 		rec := &routeRecorder{}
@@ -1334,6 +1330,63 @@ func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
 		tt := srvTestTable{
 			srvTestItem{method: http.MethodGet, path: "/products-/reviews", valid: false},
 			srvTestItem{method: http.MethodGet, path: "/products-911/reviews", valid: true, pathTemplate: "/products-:id/reviews", params: map[string]string{"id": "911"}},
+		}
+
+		testRouter(t, r.Serve(), rec, tt)
+	})
+}
+
+// Refer issue https://github.com/yousuf64/shift/issues/9
+func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_2(t *testing.T) {
+	t.Run("full segment param", func(t *testing.T) {
+		r := newTestRouter()
+		rec := &routeRecorder{}
+
+		r.GET("/posts/:id", rec.Handler())
+		r.GET("/:aaa", rec.Handler())
+		r.GET("/:abc/:bbb/comments", rec.Handler())
+
+		tt := srvTestTable{
+			srvTestItem{method: http.MethodGet, path: "/posts/400", valid: true, pathTemplate: "/posts/:id", params: map[string]string{"id": "400"}},
+			srvTestItem{method: http.MethodGet, path: "//posts////", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/posts//", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/posts//comments", valid: false},
+		}
+
+		testRouter(t, r.Serve(), rec, tt)
+	})
+
+	t.Run("mid segment param", func(t *testing.T) {
+		r := newTestRouter()
+		rec := &routeRecorder{}
+
+		r.GET("/products:id", rec.Handler())
+		r.GET("/products:id/tags", rec.Handler())
+
+		tt := srvTestTable{
+			srvTestItem{method: http.MethodGet, path: "/products101", valid: true, pathTemplate: "/products:id", params: map[string]string{"id": "101"}},
+			srvTestItem{method: http.MethodGet, path: "/products101/tags", valid: true, pathTemplate: "/products:id/tags", params: map[string]string{"id": "101"}},
+			srvTestItem{method: http.MethodGet, path: "/products/", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/products/1", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/products//", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/products//tags", valid: false},
+			srvTestItem{method: http.MethodGet, path: "/products/tags", valid: false},
+		}
+
+		testRouter(t, r.Serve(), rec, tt)
+	})
+
+	t.Run("root segment param", func(t *testing.T) {
+		r := newTestRouter()
+		rec := &routeRecorder{}
+
+		r.GET("/:aaa", rec.Handler())
+
+		tt := srvTestTable{
+			srvTestItem{method: http.MethodGet, path: "/hello", valid: true, pathTemplate: "/:aaa", params: map[string]string{"aaa": "hello"}},
+			srvTestItem{method: http.MethodGet, path: "https://example.com//", valid: false},
+			srvTestItem{method: http.MethodGet, path: "https://example.com///", valid: false},
+			srvTestItem{method: http.MethodGet, path: "https://example.com///hello", valid: false},
 		}
 
 		testRouter(t, r.Serve(), rec, tt)
@@ -1679,124 +1732,6 @@ func TestWithRedirectCustom(t *testing.T) {
 			WithRedirectCustom(statusCode)
 		})
 		assert(t, rec != nil, fmt.Sprintf("expected to panic for %d", statusCode))
-	})
-}
-
-func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_1(t *testing.T) {
-	t.Run("full segment param", func(t *testing.T) {
-		r := newTestRouter()
-		rec := &routeRecorder{}
-
-		paths := map[string]string{
-			"/products/:id/reviews": http.MethodGet,
-		}
-
-
-		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler())
-		}
-
-		tt := srvTestTable{
-			srvTestItem{method: http.MethodGet, path: "/products//reviews", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/products/911/reviews", valid: true, pathTemplate: "/products/:id/reviews", params: map[string]string{"id": "911"}},
-		}
-
-		testRouter(t, r.Serve(), rec, tt)
-	})
-
-	t.Run("mid segment param", func(t *testing.T) {
-		r := newTestRouter()
-		rec := &routeRecorder{}
-
-		paths := map[string]string{
-			"/products-:id/reviews": http.MethodGet,
-		}
-		
-		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler())
-		}
-
-		tt := srvTestTable{
-			srvTestItem{method: http.MethodGet, path: "/products-/reviews", valid: false, pathTemplate: "", params: nil},
-			srvTestItem{method: http.MethodGet, path: "/products-911/reviews", valid: true, pathTemplate: "/products-:id/reviews", params: map[string]string{"id": "911"}},
-		}
-
-		testRouter(t, r.Serve(), rec, tt)
-	})
-}
-
-// Refer issue https://github.com/yousuf64/shift/issues/9
-func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues_2(t *testing.T) {
-	t.Run("full segment param", func(t *testing.T) {
-		r := newTestRouter()
-		rec := &routeRecorder{}
-
-		paths := map[string]string{
-			"/posts/:id":          http.MethodGet,
-			"/:aaa":               http.MethodGet,
-			"/:abc/:bbb/comments": http.MethodGet,
-		}
-		
-		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler())
-		}
-
-		tt := srvTestTable{
-			srvTestItem{method: http.MethodGet, path: "/posts/400", valid: true, pathTemplate: "/posts/:id", params: map[string]string{"id": "400"}},
-			srvTestItem{method: http.MethodGet, path: "//posts////", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/posts//", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/posts//comments", valid: false},
-		}
-
-		testRouter(t, r.Serve(), rec, tt)
-	})
-
-	t.Run("mid segment param", func(t *testing.T) {
-		r := newTestRouter()
-		rec := &routeRecorder{}
-
-		paths := map[string]string{
-			"/products:id":      http.MethodGet,
-			"/products:id/tags": http.MethodGet,
-		}
-
-		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler())
-		}
-
-		tt := srvTestTable{
-			srvTestItem{method: http.MethodGet, path: "/products101", valid: true, pathTemplate: "/products:id", params: map[string]string{"id": "101"}},
-			srvTestItem{method: http.MethodGet, path: "/products101/tags", valid: true, pathTemplate: "/products:id/tags", params: map[string]string{"id": "101"}},
-			srvTestItem{method: http.MethodGet, path: "/products/", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/products/1", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/products//", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/products//tags", valid: false},
-			srvTestItem{method: http.MethodGet, path: "/products/tags", valid: false},
-		}
-
-		testRouter(t, r.Serve(), rec, tt)
-	})
-
-	t.Run("root segment param", func(t *testing.T) {
-		r := newTestRouter()
-		rec := &routeRecorder{}
-
-		paths := map[string]string{
-			"/:aaa": http.MethodGet,
-		}
-
-		for path, meth := range paths {
-			r.Map([]string{meth}, path, rec.Handler())
-		}
-
-		tt := srvTestTable{
-			srvTestItem			{method: http.MethodGet, path: "/hello", valid: true, pathTemplate: "/:aaa", params: map[string]string{"aaa": "hello"}},
-			srvTestItem{method: http.MethodGet, path: "https://example.com//", valid: false},
-			srvTestItem			{method: http.MethodGet, path: "https://example.com///", valid: false},
-			srvTestItem			{method: http.MethodGet, path: "https://example.com///hello", valid: false},
-		}
-
-		testRouter(t, r.Serve(), rec, tt)
 	})
 }
 
