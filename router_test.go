@@ -1340,6 +1340,322 @@ func TestRouter_ServeHTTP_PreventMatchingOnEmptyParamValues(t *testing.T) {
 	})
 }
 
+func TestRouter_ServeHTTP_MiddlewarePipeline_ExecutionOrder(t *testing.T) {
+	r := newTestRouter()
+
+	mw := func(name string) MiddlewareFunc {
+		return func(next HandlerFunc) HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request, route Route) error {
+				w.Write([]byte(name + "_"))
+				return next(w, r, route)
+			}
+		}
+	}
+
+	f := HandlerFunc(func(w http.ResponseWriter, r *http.Request, route Route) error {
+		w.Write([]byte(fmt.Sprintf("%s %s", r.Method, route.Path)))
+		return nil
+	})
+
+	r.Use(mw("aaa"))
+	r.Use(mw("bbb"))
+	r.Group("/v1", func(g *Group) {
+		g.Use(mw("foo"))
+		g.GET("", f)
+		g.Group("/products", func(g *Group) {
+			g.GET("", f)
+			g.With(mw("bar")).PUT("", f)
+			g.POST("/upload", f)
+		})
+	})
+	r.With(mw("baz"), mw("ccc"), mw("fff")).PATCH("/index", f)
+	r.Group("/v2", func(g *Group) {
+		g.GET("/products", f)
+	})
+
+	testTable := []struct {
+		method string
+		path   string
+		out    string
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/v1/products",
+			out:    "aaa_bbb_foo_GET /v1/products",
+		},
+		{
+			method: http.MethodPut,
+			path:   "/v1/products",
+			out:    "aaa_bbb_foo_bar_PUT /v1/products",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/v1/products/upload",
+			out:    "aaa_bbb_foo_POST /v1/products/upload",
+		},
+		{
+			method: http.MethodPatch,
+			path:   "/index",
+			out:    "aaa_bbb_baz_ccc_fff_PATCH /index",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/v2/products",
+			out:    "aaa_bbb_GET /v2/products",
+		},
+	}
+
+	srv := r.Serve()
+
+	for _, tx := range testTable {
+		t.Run(fmt.Sprintf("%s%s", tx.path, tx.path), func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req, _ := http.NewRequest(tx.method, tx.path, nil)
+			srv.ServeHTTP(rw, req)
+
+			assert(t, rw.Body.String() == tx.out, fmt.Sprintf("expected: %s, got: %s", tx.out, rw.Body.String()))
+		})
+	}
+}
+
+func TestRouter_ServeHTTP_MiddlewarePipeline_ExecutionShortCircuiting(t *testing.T) {
+	r := newTestRouter()
+
+	mw := func(name string) MiddlewareFunc {
+		return func(next HandlerFunc) HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request, route Route) error {
+				w.Write([]byte(name + "_"))
+
+				exit := r.URL.Query().Get("exit")
+				if exit == name {
+					return nil
+				}
+				return next(w, r, route)
+			}
+		}
+	}
+
+	f := HandlerFunc(func(w http.ResponseWriter, r *http.Request, route Route) error {
+		w.Write([]byte(fmt.Sprintf("%s %s", r.Method, route.Path)))
+		return nil
+	})
+
+	r.Use(mw("@"))
+	r.Group("/api", func(g *Group) {
+		g.Use(mw("foo"))
+		g.GET("/shop", f)
+	})
+	stack := r.With(mw("bar"))
+	stack.GET("/api-versions", f)
+	stack.With(mw("zzz")).POST("/api-versions", f)
+
+	testTable := []struct {
+		method string
+		path   string
+		out    string
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/api/shop",
+			out:    "@_foo_GET /api/shop",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api/shop?exit=@",
+			out:    "@_",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api/shop?exit=foo",
+			out:    "@_foo_",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api-versions",
+			out:    "@_bar_GET /api-versions",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api-versions?exit=@",
+			out:    "@_",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api-versions?exit=bar",
+			out:    "@_bar_",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api-versions",
+			out:    "@_bar_zzz_POST /api-versions",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api-versions?exit=@",
+			out:    "@_",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api-versions?exit=bar",
+			out:    "@_bar_",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api-versions?exit=zzz",
+			out:    "@_bar_zzz_",
+		},
+	}
+
+	srv := r.Serve()
+
+	for _, tx := range testTable {
+		t.Run(fmt.Sprintf("%s%s", tx.path, tx.path), func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req, _ := http.NewRequest(tx.method, tx.path, nil)
+			srv.ServeHTTP(rw, req)
+
+			assert(t, rw.Body.String() == tx.out, fmt.Sprintf("expected: %s, got: %s", tx.out, rw.Body.String()))
+		})
+	}
+}
+
+func TestRouter_ServeHTTP_MiddlewarePipeline_ExecuteOnlyOnRouteMatch(t *testing.T) {
+	r := newTestRouter()
+
+	mw := func(name string) MiddlewareFunc {
+		return func(next HandlerFunc) HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request, route Route) error {
+				w.Write([]byte(name + "_"))
+				return next(w, r, route)
+			}
+		}
+	}
+
+	f := HandlerFunc(func(w http.ResponseWriter, r *http.Request, route Route) error {
+		w.Write([]byte(fmt.Sprintf("%s %s", r.Method, route.Path)))
+		return nil
+	})
+
+	r.Use(mw("0"))
+	r.With(mw("1")).Group("/schemas", func(g *Group) {
+		g.With(mw("2")).Group("/v1", func(g *Group) {
+			g.GET("/network-policies", f)
+			g.With(mw("3")).POST("/service-accounts", f)
+		})
+	})
+
+	testTable := []struct {
+		method string
+		path   string
+		out    string
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/schemas/v1/network-policies",
+			out:    "0_1_2_GET /schemas/v1/network-policies",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/schemas/v2/network-policies",
+			out:    "404 page not found\n",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/schemas/v1/network-policies",
+			out:    "404 page not found\n",
+		},
+		{
+			method: http.MethodPost,
+			path:   "/schemas/v1/service-accounts",
+			out:    "0_1_2_3_POST /schemas/v1/service-accounts",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/schemas/v1/service-accounts",
+			out:    "404 page not found\n",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/schemas/v1/service-accounts/spec",
+			out:    "404 page not found\n",
+		},
+	}
+
+	srv := r.Serve()
+
+	for _, tx := range testTable {
+		t.Run(fmt.Sprintf("%s%s", tx.path, tx.path), func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req, _ := http.NewRequest(tx.method, tx.path, nil)
+			srv.ServeHTTP(rw, req)
+
+			assert(t, rw.Body.String() == tx.out, fmt.Sprintf("expected: %s, got: %s", tx.out, rw.Body.String()))
+		})
+	}
+}
+
+func TestRouter_ServeHTTP_MiddlewarePipeline_IgnoreLateRegistered(t *testing.T) {
+	r := newTestRouter()
+
+	mw := func(name string) MiddlewareFunc {
+		return func(next HandlerFunc) HandlerFunc {
+			return func(w http.ResponseWriter, r *http.Request, route Route) error {
+				w.Write([]byte(name + "_"))
+				return next(w, r, route)
+			}
+		}
+	}
+
+	f := HandlerFunc(func(w http.ResponseWriter, r *http.Request, route Route) error {
+		w.Write([]byte(fmt.Sprintf("%s %s", r.Method, route.Path)))
+		return nil
+	})
+
+	r.Group("/movies", func(g *Group) {
+		g.Group("/drama", func(g *Group) {
+			g.GET("", f)
+			g.Use(mw("bar"))
+			g.GET("/:id", f)
+		})
+	})
+	r.GET("/healthz", f)
+	r.Use(mw("foo"))
+
+	testTable := []struct {
+		method string
+		path   string
+		out    string
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/movies/drama",
+			out:    "GET /movies/drama",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/movies/drama/:id",
+			out:    "bar_GET /movies/drama/:id",
+		},
+		{
+			method: http.MethodGet,
+			path:   "/healthz",
+			out:    "GET /healthz",
+		},
+	}
+
+	srv := r.Serve()
+
+	for _, tx := range testTable {
+		t.Run(fmt.Sprintf("%s%s", tx.path, tx.path), func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req, _ := http.NewRequest(tx.method, tx.path, nil)
+			srv.ServeHTTP(rw, req)
+
+			assert(t, rw.Body.String() == tx.out, fmt.Sprintf("expected: %s, got: %s", tx.out, rw.Body.String()))
+		})
+	}
+}
+
 func TestWithRedirectCustom(t *testing.T) {
 	t.Run("in 3XX", func(t *testing.T) {
 		statusCode := 333
