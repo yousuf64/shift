@@ -39,12 +39,12 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if handler != nil {
 		if ps == nil {
 			// Replace with immutable empty params object.
-			// This is to ensure Route.Params is never <nil> in the request handler.
+			// This is to ensure Route.internalParams is never <nil> in the request handler.
 			ps = emptyParams
 		}
 
 		_ = handler(w, r, Route{
-			Params: ps,
+			Params: Params{internal: ps},
 			Path:   template,
 		})
 		return
@@ -69,12 +69,12 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case behaviorExecute:
 				if ps == nil {
 					// Replace with immutable empty params object.
-					// This is to ensure Route.Params is never <nil> in the request handler.
+					// This is to ensure Route.internalParams is never <nil> in the request handler.
 					ps = emptyParams
 				}
 				r.URL.Path = clean
 				_ = handler(w, r, Route{
-					Params: ps,
+					Params: Params{ps},
 					Path:   template,
 				})
 				return
@@ -95,11 +95,11 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case behaviorExecute:
 				if ps == nil {
 					// Replace with immutable empty params object.
-					// This is to ensure Route.Params is never <nil> in the request handler.
+					// This is to ensure Route.internalParams is never <nil> in the request handler.
 					ps = emptyParams
 				}
 				_ = handler(w, r, Route{
-					Params: ps,
+					Params: Params{ps},
 					Path:   template,
 				})
 				return

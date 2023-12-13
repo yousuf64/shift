@@ -566,7 +566,7 @@ func BenchmarkSimple(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, func() *Params {
+			tree.search(s, func() *internalParams {
 				return params
 			})
 			params.reset()
@@ -645,7 +645,7 @@ func BenchmarkSimple2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, func() *Params {
+			tree.search(s, func() *internalParams {
 				return params
 			})
 			params.reset()
@@ -653,9 +653,9 @@ func BenchmarkSimple2(b *testing.B) {
 	}
 }
 
-func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
+func testSearch(t *testing.T, tree *node, params *internalParams, table testTable1) {
 	for _, tx := range table {
-		nd, ps := tree.search(tx.path, func() *Params {
+		nd, ps := tree.search(tx.path, func() *internalParams {
 			return params
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
@@ -675,7 +675,7 @@ func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 
 func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTable2) {
 	for _, tx := range table {
-		nd, ps := tree.search(tx.path, func() *Params {
+		nd, ps := tree.search(tx.path, func() *internalParams {
 			return newParams(maxParams)
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {

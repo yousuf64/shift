@@ -96,13 +96,13 @@ func (st srvTestItemWithParamsCount) Test(t *testing.T, srv *Server, rr *routeRe
 }
 
 type routeRecorder struct {
-	params *Params
+	params *internalParams
 	path   string
 }
 
 func (rc *routeRecorder) Handler() HandlerFunc {
 	return func(_ http.ResponseWriter, _ *http.Request, route Route) error {
-		rc.params = route.Params.Copy()
+		rc.params = route.Params.Copy().internal
 		rc.path = route.Path
 		return nil
 	}
@@ -1218,10 +1218,10 @@ func TestRouter_MethodNotAllowed_Off(t *testing.T) {
 
 func TestRouter_StaticRoutes_EmptyParamsRef(t *testing.T) {
 	r := newTestRouter()
-	var params *Params
+	var params *internalParams
 
 	f := func(w http.ResponseWriter, r *http.Request, route Route) error {
-		params = route.Params
+		params = route.Params.internal
 		return nil
 	}
 
@@ -1255,7 +1255,7 @@ func TestRouter_StaticRoutes_EmptyParamsRef(t *testing.T) {
 func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 	r := newTestRouter()
 
-	paramAccessor := func(ps *Params) {
+	paramAccessor := func(ps *internalParams) {
 		ps.appendValue("v") // though the func is not exported, let's ensure we don't add any concurrent unsafe behavior.
 		ps.Get("id")
 		ps.ForEach(func(k, v string) {
@@ -1272,8 +1272,8 @@ func TestRouter_StaticRoutes_EmptyParamsRef_ConcurrentAccess(t *testing.T) {
 			assert(t, b == nil, fmt.Sprintf("%s recovery > expected: no panic, got: %v", r.URL.String(), b))
 		}()
 
-		assert(t, route.Params == emptyParams, fmt.Sprintf("%s params ref > expected: %p, got: %p", r.URL.String(), emptyParams, route.Params))
-		paramAccessor(route.Params)
+		assert(t, route.Params.internal == emptyParams, fmt.Sprintf("%s params ref > expected: %p, got: %p", r.URL.String(), emptyParams, route.Params))
+		paramAccessor(route.Params.internal)
 		return nil
 	}
 

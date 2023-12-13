@@ -32,13 +32,13 @@ func (ctx *routeCtx) Value(key any) any {
 // reset resets the routeCtx values to zero values.
 func (ctx *routeCtx) reset() {
 	ctx.Context = nil
-	ctx.Route.Params = nil
+	ctx.Route.Params.internal = nil
 	ctx.Route.Path = ""
 }
 
 // emptyRoute is a Route object with emptyParams and empty Path value.
 var emptyRoute = Route{
-	Params: emptyParams,
+	Params: Params{emptyParams},
 	Path:   "",
 }
 
@@ -50,7 +50,7 @@ func WithRoute(ctx context.Context, route Route) context.Context {
 // FromContext unpacks Route from the provided context.Context.
 // Returns false as the second return value if a Route was not found within the provided context.Context.
 // Returned Route.Params can never be <nil> even if a Route is not found as it replaces <nil> Route.Params object
-// with an empty Params object.
+// with an empty internalParams object.
 func FromContext(ctx context.Context) (Route, bool) {
 	if rctx, ok := ctx.Value(&ctxKey).(*routeCtx); ok {
 		return rctx.Route, true
