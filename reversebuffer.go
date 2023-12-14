@@ -1,7 +1,5 @@
 package shift
 
-import "unsafe"
-
 type reverseBuffer interface {
 	WriteString(s string)
 	String() string
@@ -30,7 +28,7 @@ func (buf *sizedReverseBuffer) WriteString(s string) {
 }
 
 func (buf *sizedReverseBuffer) String() string {
-	return unsafeBytesToString(buf.b[buf.offset:])
+	return bytesToString(buf.b[buf.offset:])
 }
 
 type reverseBuffer128 struct {
@@ -56,9 +54,5 @@ func (buf *reverseBuffer128) WriteString(s string) {
 }
 
 func (buf *reverseBuffer128) String() string {
-	return unsafeBytesToString(buf.b[buf.offset:])
-}
-
-func unsafeBytesToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return bytesToString(buf.b[buf.offset:])
 }
