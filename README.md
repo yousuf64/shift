@@ -81,6 +81,8 @@ BenchmarkEcho_StaticAll-12                        106158             10877 ns/op
 * Has zero external dependencies.
 
 ## Quick Start
+Minimum Go version: `1.18`
+
 To install `shift`, simply run:
 ```
 go get -u github.com/yousuf64/shift
