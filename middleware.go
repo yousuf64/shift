@@ -65,16 +65,14 @@ func writeStack(w io.Writer, rec any, skipFrames int) {
 // It is highly recommended to use this middleware before the Recover middleware to lower memory footprints in case of a panic.
 func RouteContext() MiddlewareFunc {
 	return func(next HandlerFunc) HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
+		return func(w http.ResponseWriter, r *http.Request, route Route) error {
 			ctx := getCtx()
 			ctx.Context = r.Context()
 			ctx.Route = route
+			defer releaseCtx(ctx)
 
 			r = r.WithContext(ctx)
-			err = next(w, r, route)
-
-			releaseCtx(ctx)
-			return
+			return next(w, r, route)
 		}
 	}
 }
