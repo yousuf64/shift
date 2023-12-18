@@ -61,8 +61,6 @@ func writeStack(w io.Writer, rec any, skipFrames int) {
 // RouteContext packs Route information into http.Request context.
 //
 // Use RouteOf to unpack Route information from the http.Request context.
-//
-// It is highly recommended to use this middleware before the Recover middleware to lower memory footprints in case of a panic.
 func RouteContext() MiddlewareFunc {
 	return func(next HandlerFunc) HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request, route Route) error {

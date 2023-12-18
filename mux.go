@@ -9,8 +9,8 @@ import (
 
 type multiplexer interface {
 	add(path string, isStatic bool, handler HandlerFunc)
-	find(path string) (HandlerFunc, *Params, string)
-	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *Params, template string, matchedPath string)
+	find(path string) (HandlerFunc, *internalParams, string)
+	findCaseInsensitive(path string, withParams bool) (h HandlerFunc, ps *internalParams, template string, matchedPath string)
 }
 
 // radixMux can store both static and param routes.
@@ -32,44 +32,34 @@ func newRadixMux() *radixMux {
 }
 
 func (mux *radixMux) add(path string, isStatic bool, handler HandlerFunc) {
-	// Static routes doesn't need to worry about releasing Params.
+	// Static routes doesn't need to worry about releasing internalParams.
 	if isStatic {
 		mux.tree.insert(path, handler)
 		return
 	}
 
-	// Wrap request handler by the release params handler. So that Params object is put back to the pool for reuse.
+	// Wrap request handler by the release params handler. So that internalParams object is put back to the pool for reuse.
 	vc := mux.tree.insert(path, releaseParamsHandler(mux.paramsPool, handler))
 
 	if mux.paramsPool.New == nil || vc > mux.maxParams {
 		mux.maxParams = vc
 		mux.paramsPool.New = func() interface{} {
-			return newParams(vc)
+			return newInternalParams(vc)
 		}
 	}
 }
 
-// releaseParamsHandler releases the request handler's Params object into the sync.Pool after execution.
-// Here the downside is, if panics are not recovered in the chain, this wrapper won't get executed.
-// Therefore, Params won't get released to the pool.
+// releaseParamsHandler releases the Route.Params' underlying internalParams object into the sync.Pool after execution.
 func releaseParamsHandler(pool *sync.Pool, handler HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request, route Route) (err error) {
-		err = handler(w, r, route)
-
-		// TODO: Check for emptyParams?
-		if route.Params != nil {
-			route.Params.reset()
-			pool.Put(route.Params)
-			route.Params = nil
-		}
-
-		return
+	return func(w http.ResponseWriter, r *http.Request, route Route) error {
+		defer route.Params.release(pool)
+		return handler(w, r, route)
 	}
 }
 
-func (mux *radixMux) find(path string) (HandlerFunc, *Params, string) {
-	n, ps := mux.tree.search(path, func() *Params {
-		ps := mux.paramsPool.Get().(*Params)
+func (mux *radixMux) find(path string) (HandlerFunc, *internalParams, string) {
+	n, ps := mux.tree.search(path, func() *internalParams {
+		ps := mux.paramsPool.Get().(*internalParams)
 		return ps
 	})
 
@@ -80,14 +70,14 @@ func (mux *radixMux) find(path string) (HandlerFunc, *Params, string) {
 	return nil, nil, ""
 }
 
-func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string, string) {
-	n, ps, matchedPath := mux.tree.caseInsensitiveSearch(path, func() *Params {
-		ps := mux.paramsPool.Get().(*Params)
+func (mux *radixMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *internalParams, string, string) {
+	n, ps, matchedPath := mux.tree.caseInsensitiveSearch(path, func() *internalParams {
+		ps := mux.paramsPool.Get().(*internalParams)
 		return ps
 	})
 
 	if n != nil && n.handler != nil {
-		// When Params object is not required, release it to the pool and return a nil.
+		// When internalParams object is not required, release it to the pool and return a nil.
 		if !withParams && ps != nil {
 			ps.reset()
 			mux.paramsPool.Put(ps)
@@ -137,7 +127,7 @@ func (mux *staticMux) add(path string, isStatic bool, handler HandlerFunc) {
 	mux.byLength[len(path)] = append(mux.byLength[len(path)], path)
 }
 
-func (mux *staticMux) find(path string) (HandlerFunc, *Params, string) {
+func (mux *staticMux) find(path string) (HandlerFunc, *internalParams, string) {
 	if len(path) >= len(mux.byLength) {
 		return nil, nil, ""
 	}
@@ -151,7 +141,7 @@ func (mux *staticMux) find(path string) (HandlerFunc, *Params, string) {
 	return mux.routes[path], nil, path
 }
 
-func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *Params, string, string) {
+func (mux *staticMux) findCaseInsensitive(path string, _ bool) (HandlerFunc, *internalParams, string, string) {
 	if len(path) >= len(mux.byLength) {
 		return nil, nil, "", ""
 	}
@@ -190,7 +180,7 @@ func (mux *hybridMux) add(path string, isStatic bool, handler HandlerFunc) {
 	}
 }
 
-func (mux *hybridMux) find(path string) (HandlerFunc, *Params, string) {
+func (mux *hybridMux) find(path string) (HandlerFunc, *internalParams, string) {
 	if handler, ps, template := mux.static.find(path); handler != nil {
 		return handler, ps, template
 	}
@@ -198,7 +188,7 @@ func (mux *hybridMux) find(path string) (HandlerFunc, *Params, string) {
 	return mux.radix.find(path)
 }
 
-func (mux *hybridMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *Params, string, string) {
+func (mux *hybridMux) findCaseInsensitive(path string, withParams bool) (HandlerFunc, *internalParams, string, string) {
 	if handler, ps, template, matchedPath := mux.static.findCaseInsensitive(path, withParams); handler != nil {
 		return handler, ps, template, matchedPath
 	}

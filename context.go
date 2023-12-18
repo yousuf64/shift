@@ -32,14 +32,7 @@ func (ctx *routeCtx) Value(key any) any {
 // reset resets the routeCtx values to zero values.
 func (ctx *routeCtx) reset() {
 	ctx.Context = nil
-	ctx.Route.Params = nil
-	ctx.Route.Path = ""
-}
-
-// emptyRoute is a Route object with emptyParams and empty Path value.
-var emptyRoute = Route{
-	Params: emptyParams,
-	Path:   "",
+	ctx.Route = Route{}
 }
 
 // WithRoute returns a context.Context wrapping the provided context.Context and the Route.
@@ -49,18 +42,15 @@ func WithRoute(ctx context.Context, route Route) context.Context {
 
 // FromContext unpacks Route from the provided context.Context.
 // Returns false as the second return value if a Route was not found within the provided context.Context.
-// Returned Route.Params can never be <nil> even if a Route is not found as it replaces <nil> Route.Params object
-// with an empty Params object.
 func FromContext(ctx context.Context) (Route, bool) {
 	if rctx, ok := ctx.Value(&ctxKey).(*routeCtx); ok {
 		return rctx.Route, true
 	}
-	return emptyRoute, false
+	return Route{}, false
 }
 
 // RouteOf unpacks Route information from the provided http.Request context.
 // Returns an empty route if a Route was not found within the provided http.Request context.
-// Returned Route.Params is always non-nil, so it's not necessary to perform a <nil> check.
 // Use RouteContext middleware in the middleware stack to pack Route information into http.Request context.
 //
 // It is a shorthand for,

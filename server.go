@@ -37,14 +37,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handler, ps, template := mux.find(path)
 	if handler != nil {
-		if ps == nil {
-			// Replace with immutable empty params object.
-			// This is to ensure Route.Params is never <nil> in the request handler.
-			ps = emptyParams
-		}
-
 		_ = handler(w, r, Route{
-			Params: ps,
+			Params: newParams(ps), // ps could be <nil> as well, but that's okay!
 			Path:   template,
 		})
 		return
@@ -67,14 +61,9 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, r.URL.String(), svr.config.trailingSlashMatch.code)
 				return
 			case behaviorExecute:
-				if ps == nil {
-					// Replace with immutable empty params object.
-					// This is to ensure Route.Params is never <nil> in the request handler.
-					ps = emptyParams
-				}
 				r.URL.Path = clean
 				_ = handler(w, r, Route{
-					Params: ps,
+					Params: newParams(ps), // ps could be <nil> here too, but that's okay!
 					Path:   template,
 				})
 				return
@@ -93,13 +82,8 @@ func (svr *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Redirect(w, r, r.URL.String(), svr.config.pathCorrectionMatch.code)
 				return
 			case behaviorExecute:
-				if ps == nil {
-					// Replace with immutable empty params object.
-					// This is to ensure Route.Params is never <nil> in the request handler.
-					ps = emptyParams
-				}
 				_ = handler(w, r, Route{
-					Params: ps,
+					Params: newParams(ps), // ps could be <nil> here too, but that's okay!
 					Path:   template,
 				})
 				return

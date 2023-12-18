@@ -9,12 +9,12 @@ import "net/http"
 // instead of the original Route object. The reason being Route.Params is pooled into a sync.Pool when the
 // request is completed.
 type Route struct {
-	Params *Params
+	Params Params
 	Path   string
 }
 
-// Copy returns a copy of the Route.
-// It calls Params.Copy implicitly to copy the underlying Params object.
+// Copy returns a copy of the [Route].
+// It calls [Params.Copy] implicitly to copy the underlying [Route.Params] object.
 func (r Route) Copy() Route {
 	return Route{
 		Params: r.Params.Copy(),
@@ -40,8 +40,7 @@ type MiddlewareFunc func(next HandlerFunc) HandlerFunc
 // 2. Use RouteOf func to unpack from the http.Request context.
 //
 //	func(w http.ResponseWriter, r *http.Request) error {
-//		route := RouteOf(r.Context())
-//		route.Params()
+//		route := RouteOf(r)
 //		...
 //	}
 func HTTPHandlerFunc(handler http.HandlerFunc) HandlerFunc {
