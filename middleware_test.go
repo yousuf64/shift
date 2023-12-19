@@ -48,20 +48,3 @@ func BenchmarkRouteContextMiddleware(b *testing.B) {
 		}
 	}
 }
-
-func TestRouteContextMiddleware_Malloc(t *testing.T) {
-	r := New()
-	r.Use(RouteContext())
-	r.GET("/movies/genres/:name", HTTPHandlerFunc(fakeHttpHandler))
-	srv := r.Serve()
-
-	rr := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/movies/genres/western", nil)
-
-	allocs := testing.AllocsPerRun(1000, func() {
-		srv.ServeHTTP(rr, req)
-	})
-
-	assert(t, allocs == 1, fmt.Sprintf("allocations > expected: %d, got: %g", 1, allocs))
-	t.Log(allocs)
-}

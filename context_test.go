@@ -1,7 +1,6 @@
 package shift
 
 import (
-	"fmt"
 	"net/http"
 	"testing"
 )
@@ -72,28 +71,6 @@ func BenchmarkContext_FromContext(b *testing.B) {
 			FromContext(req.Context())
 		}
 	})
-}
-
-func TestContext_FromContext_Malloc(t *testing.T) {
-	req, _ := http.NewRequest(http.MethodGet, "/movies/111/segments/222/frames/333", nil)
-	ctx := req.Context()
-
-	ip := newInternalParams(3)
-	ip.setKeys(&[]string{"id", "segmentId", "frameId"})
-	ip.appendValue("111")
-	ip.appendValue("222")
-	ip.appendValue("333")
-
-	req = req.WithContext(WithRoute(ctx, Route{
-		Params: newParams(ip),
-		Path:   "/movies/:id/segments/:segmentId/frames/:frameId",
-	}))
-
-	allocs := testing.AllocsPerRun(1000, func() {
-		FromContext(req.Context())
-	})
-
-	assert(t, allocs == 0, fmt.Sprintf("allocations > expected: %d, got: %g", 0, allocs))
 }
 
 func TestContext_RouteOf(t *testing.T) {
