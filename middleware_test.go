@@ -25,3 +25,26 @@ func TestRouteContextMiddleware(t *testing.T) {
 
 	assert(t, rw.Code == http.StatusOK, fmt.Sprintf("http status code > expected: 200, got: %d", rw.Code))
 }
+
+func BenchmarkRouteContextMiddleware(b *testing.B) {
+	r := New()
+	r.Use(RouteContext())
+	r.GET("/movies/genres/:name", HTTPHandlerFunc(fakeHttpHandler))
+	srv := r.Serve()
+
+	rr := httptest.NewRecorder()
+	requests := make([]*http.Request, 0, 10)
+	for _, genre := range []string{"drama", "western", "sci-fi", "thriller", "animation", "adventure", "noir", "fantasy", "crime", "comedy"} {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/movies/genres/%s", genre), nil)
+		requests = append(requests, req)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, req := range requests {
+			srv.ServeHTTP(rr, req)
+		}
+	}
+}

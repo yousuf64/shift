@@ -6,5 +6,5 @@ import "unsafe"
 
 // bytesToString converts provided bytes to string without incurring additional allocations using unsafe type casting.
 func bytesToString(b []byte) string {
-	return unsafe.String(&b[0], len(b))
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -274,4 +275,47 @@ func TestCleanPath_Malloc(t *testing.T) {
 			t.Errorf("CleanPath(%q): %v allocs, want zero", test.result, allocs)
 		}
 	}
+}
+
+func TestRouteContextMiddleware_Malloc(t *testing.T) {
+	if strings.HasPrefix(runtime.Version(), "go1.18") {
+		return
+	}
+
+	r := New()
+	r.Use(RouteContext())
+	r.GET("/movies/genres/:name", HTTPHandlerFunc(fakeHttpHandler))
+	srv := r.Serve()
+
+	rr := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/movies/genres/western", nil)
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		srv.ServeHTTP(rr, req)
+	})
+
+	assert(t, allocs == 1, fmt.Sprintf("allocations > expected: %d, got: %g", 1, allocs))
+	t.Log(allocs)
+}
+
+func TestContext_FromContext_Malloc(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "/movies/111/segments/222/frames/333", nil)
+	ctx := req.Context()
+
+	ip := newInternalParams(3)
+	ip.setKeys(&[]string{"id", "segmentId", "frameId"})
+	ip.appendValue("111")
+	ip.appendValue("222")
+	ip.appendValue("333")
+
+	req = req.WithContext(WithRoute(ctx, Route{
+		Params: newParams(ip),
+		Path:   "/movies/:id/segments/:segmentId/frames/:frameId",
+	}))
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		FromContext(req.Context())
+	})
+
+	assert(t, allocs == 0, fmt.Sprintf("allocations > expected: %d, got: %g", 0, allocs))
 }

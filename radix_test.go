@@ -57,7 +57,7 @@ func TestStatic(t *testing.T) {
 		}
 	}
 
-	params := newParams(paramsCount)
+	params := newInternalParams(paramsCount)
 
 	tt := testTable1{
 		{path: "/users/find", valid: true, pathTemplate: "/users/find"},
@@ -128,7 +128,7 @@ func TestDynamicRoutes(t *testing.T) {
 		}
 	}
 
-	params := newParams(paramsCount)
+	params := newInternalParams(paramsCount)
 
 	tt := testTable1{
 		{path: "/users/find/yousuf", valid: true, pathTemplate: "/users/find/:name"},
@@ -262,7 +262,7 @@ func TestWildcard(t *testing.T) {
 		}
 	}
 
-	params := newParams(paramsCount)
+	params := newInternalParams(paramsCount)
 
 	tt := testTable1{
 		{path: "/messages/publish", valid: true, pathTemplate: "/messages/*action"},
@@ -543,7 +543,7 @@ func BenchmarkSimple(b *testing.B) {
 		}
 	}
 
-	params := newParams(paramsCount)
+	params := newInternalParams(paramsCount)
 
 	match := [...]string{
 		"cmd/test/",
@@ -566,7 +566,7 @@ func BenchmarkSimple(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, func() *Params {
+			tree.search(s, func() *internalParams {
 				return params
 			})
 			params.reset()
@@ -611,7 +611,7 @@ func BenchmarkSimple2(b *testing.B) {
 		}
 	}
 
-	params := newParams(paramsCount)
+	params := newInternalParams(paramsCount)
 
 	match := [...]string{
 		//"/users/find/yousuf",
@@ -645,7 +645,7 @@ func BenchmarkSimple2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, s := range match {
-			tree.search(s, func() *Params {
+			tree.search(s, func() *internalParams {
 				return params
 			})
 			params.reset()
@@ -653,9 +653,9 @@ func BenchmarkSimple2(b *testing.B) {
 	}
 }
 
-func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
+func testSearch(t *testing.T, tree *node, params *internalParams, table testTable1) {
 	for _, tx := range table {
-		nd, ps := tree.search(tx.path, func() *Params {
+		nd, ps := tree.search(tx.path, func() *internalParams {
 			return params
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
@@ -675,8 +675,8 @@ func testSearch(t *testing.T, tree *node, params *Params, table testTable1) {
 
 func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTable2) {
 	for _, tx := range table {
-		nd, ps := tree.search(tx.path, func() *Params {
-			return newParams(maxParams)
+		nd, ps := tree.search(tx.path, func() *internalParams {
+			return newInternalParams(maxParams)
 		})
 		if tx.valid && (nd == nil || nd.handler == nil) {
 			t.Errorf("expected: valid handler, got: no handler: %s", tx.path)
@@ -689,7 +689,7 @@ func testSearchWithParams(t *testing.T, tree *node, maxParams int, table testTab
 		}
 		if tx.params != nil {
 			for k, v := range tx.params {
-				pv := ps.Get(k)
+				pv := ps.get(k)
 				if v != pv {
 					t.Errorf("params assertion failed. expected: %s, got: %s", v, pv)
 				}

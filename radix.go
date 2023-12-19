@@ -262,7 +262,7 @@ func (n *node) reindex() {
 	}
 }
 
-func (n *node) search(path string, paramInjector func() *Params) (*node, *Params) {
+func (n *node) search(path string, paramInjector func() *internalParams) (*node, *internalParams) {
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
@@ -276,8 +276,8 @@ func (n *node) search(path string, paramInjector func() *Params) (*node, *Params
 
 // searchRecursion recursively traverses the radix tree looking for a matching node.
 // Returns the matched node if found.
-// Returns Params only when matched node is a param node. Returns <nil> otherwise.
-func (n *node) searchRecursion(path string, params *Params, paramInjector func() *Params) (*node, *Params) {
+// Returns internalParams only when matched node is a param node. Returns <nil> otherwise.
+func (n *node) searchRecursion(path string, params *internalParams, paramInjector func() *internalParams) (*node, *internalParams) {
 	// Search a matching node inside node's children.
 	// Char could be indexed?
 	if c := path[0]; n.index.minChar <= c && c <= n.index.maxChar {
@@ -433,7 +433,7 @@ func scanPath(path string) (varsCount int) {
 	return
 }
 
-func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) (*node, *Params, string) {
+func (n *node) caseInsensitiveSearch(path string, paramInjector func() *internalParams) (*node, *internalParams, string) {
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
@@ -454,8 +454,7 @@ func (n *node) caseInsensitiveSearch(path string, paramInjector func() *Params) 
 	return fn, ps, buf.String()
 }
 
-// TODO: optimize search...
-func (n *node) caseInsensitiveSearchRecursion(path string, params *Params, paramInjector func() *Params, buf reverseBuffer) (*node, *Params) {
+func (n *node) caseInsensitiveSearchRecursion(path string, params *internalParams, paramInjector func() *internalParams, buf reverseBuffer) (*node, *internalParams) {
 	var swappedChild bool
 
 	// Look for a child node whose first char equals searching path's first char and prefix length
