@@ -395,4 +395,4 @@ Copyright (c) 2023 Mohammed Yousuf
 
 ## Status
 `shift` is currently pre-1.0. Therefore, there could be minor breaking changes to stabilize the API before the initial stable release. Please open an issue if you have questions, requests, suggestions for improvements, or concerns.
-It's intended to release 1.0.0 before the end of August.
+It's intended to release 1.0.0 before the end of January 2024.
